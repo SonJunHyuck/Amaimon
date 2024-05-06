@@ -70,3 +70,30 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# external resources
+10.Models/
+11.Animation/
+12.Images/
+13.Effects/
+14.Fonts/
+15.Sounds/
+Hovl Studio/
+JMO Assets/
+Malbers Animations/
+Piloto Studio/
+PolygonAdventure/
+TextMesh Pro/
+
+10.Models.meta
+11.Animation.meta
+12.Images.meta
+13.Effects.meta
+14.Fonts.meta
+15.Sounds.meta
+Hovl Studio.meta
+JMO Assets.meta
+Malbers Animations.meta
+Piloto Studio.meta
+PolygonAdventure.meta
+TextMesh Pro.meta
