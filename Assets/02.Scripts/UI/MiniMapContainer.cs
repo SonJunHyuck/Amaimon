@@ -57,7 +57,7 @@ public class MiniMapContainer : MonoBehaviour
         var Bytes = Image.EncodeToPNG();
         
 
-        File.WriteAllBytes(Application.dataPath + "/05.Images/Minimap.png", Bytes);
+        File.WriteAllBytes(Application.dataPath + "/12.Images/Minimap.png", Bytes);
 
         mMinimapSprite = Sprite.Create(Image,new Rect(0,0, mMiniMapCam.targetTexture.width, mMiniMapCam.targetTexture.height),Vector2.zero);
 
