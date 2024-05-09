@@ -5,55 +5,48 @@ using UnityEngine.SceneManagement;
 
 public class LoadingSceneManager : MonoBehaviour
 {
+    [Header("Title")]
+    public GameObject title;
 
-    public string nextScene;
-
-    public GameObject mTitleCanvas;
-    public GameObject mLoadingCanvas;
+    [Header("Loading")]
+    public GameObject loading;
     public Image progressBar;
-
     public Text loadingTxt;
 
-    private void Start()
+    string nextScene;
+
+    private void Awake()
     {
         nextScene = "InGame";
     }
 
-    public void LoadScene(string sceneName)
+    public void LoadScene()
     {
-        nextScene = sceneName;
-        mTitleCanvas.SetActive(false);
-        mLoadingCanvas.SetActive(true);
-        StartCoroutine("LoadingScene");
+        //nextScene = sceneName;
+        title.SetActive(false);
+        loading.SetActive(true);
+        StartCoroutine(LoadingScene());
     }
 
     IEnumerator LoadingScene()
     {
         yield return null;
 
-        AsyncOperation op = SceneManager.LoadSceneAsync(nextScene);
-        op.allowSceneActivation = false;
+        AsyncOperation asyncOperation = SceneManager.LoadSceneAsync(nextScene);
+        //asyncOperation.allowSceneActivation = false;
 
         float timer = 0.0f;
 
-        while (!op.isDone)
+        while (!asyncOperation.isDone)
         {
             timer += Time.deltaTime;
 
             loadingTxt.text = (Mathf.Round(progressBar.fillAmount * 100.0f)).ToString() + "%";
 
-            //if (timer < 10)
-            //{
-            //    if (op.progress > 0.9f)
-            //        progressBar.fillAmount = Mathf.Lerp(progressBar.fillAmount, op.progress * timer, timer);
-            //    else
-            //        progressBar.fillAmount = Mathf.Lerp(progressBar.fillAmount, op.progress, timer);
-            //}
-            //else
-            {
-                progressBar.fillAmount = Mathf.Lerp(progressBar.fillAmount, 1f, timer);
-                op.allowSceneActivation = true;
-            }
+            progressBar.fillAmount = Mathf.Lerp(progressBar.fillAmount, 1f, timer);
+
+            // .. Explane : allowSceneActivation == true -> isDone == true
+            // asyncOperation.allowSceneActivation = true;
 
             yield return null;
         }
