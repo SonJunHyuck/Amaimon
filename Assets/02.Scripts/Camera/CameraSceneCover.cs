@@ -1,17 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static Unity.VisualScripting.Member;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(Camera))]
-public class MainCamEffect : MonoBehaviour
-{
+public class CameraSceneCover : MonoBehaviour
+{ 
     public Material material;
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
-        if(material == null)
+        if (material == null)
         {
             Graphics.Blit(source, destination);
             return;
@@ -19,5 +18,4 @@ public class MainCamEffect : MonoBehaviour
 
         Graphics.Blit(source, destination, material);
     }
-
 }

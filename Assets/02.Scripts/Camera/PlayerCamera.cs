@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor.VersionControl;
@@ -7,21 +7,18 @@ using static UnityEngine.GraphicsBuffer;
 
 public class PlayerCamera : MonoBehaviour
 {
-    Transform mTrans;
+    Transform mTrans;  // main camera
     Transform mFollowTrans;
     Vector3 mFollowCamTrans;
     Transform mPlayerTrans;
     Transform mTarget;
     BossMapInfo mBossMapInfo;
 
-    // Start is called before the first frame update
-
     [Header("Parameter")]
     public float clampAngle = 70f;
     public float sensitivity;
     public float followSpeed = 5f;
     public float fadeSpeed = 3.0f;
-
 
     private float rotX;
     private float rotY;
@@ -60,10 +57,10 @@ public class PlayerCamera : MonoBehaviour
     MainCamEffect mCamEffect;
 
     float grayScale = 0.0f;
-    float fadeValue = 0.0f;
-    float appliedTime = 2.0f;
 
     public UIManager uiM;
+
+    private CameraEffect camEffect;
 
     public void setPlayerTrans(Transform playerTrans) { 
         mFollowTrans = playerTrans;
@@ -75,7 +72,7 @@ public class PlayerCamera : MonoBehaviour
         mMode = (CameraMode)camMode;
         if (mMode == CameraMode.NPC)
         {
-            NPCmargin = (mFollowTrans.position+mFollowTrans.right*2f) - (followTrans.position + Vector3.up * 1.2f);
+            NPCmargin = (mFollowTrans.position + mFollowTrans.right * 2f) - (followTrans.position + Vector3.up * 1.2f);
             mTrans.position += NPCmargin * 2;
             mFollowTrans = followTrans;
         }
@@ -87,7 +84,7 @@ public class PlayerCamera : MonoBehaviour
         }
     }
 
-    //public void IntroCamera(Transform bossStartPos,Transform bossInitialPos,Transform playerInitialPos)
+    // 보스 출현 연출
     public void IntroCamera(BossMapInfo bossMapInfo)
     {
         mMode = CameraMode.INTRO;
@@ -100,6 +97,7 @@ public class PlayerCamera : MonoBehaviour
         
     }
 
+    // 카메라 쉐이킹 호출
     public void ShakingCamera(float delayTime)
     {
         bShakingCam = true;
@@ -108,18 +106,11 @@ public class PlayerCamera : MonoBehaviour
         StartCoroutine("CameraShaking", delayTime);
     }
 
-    public void GameOverEffect()
-    {
-        mCamEffect.material = cameraEffectMat[0];
-        mCamEffect.enabled = true;
-        StartCoroutine(gameOver());
-    }
 
-    public void FadeINOUTEffect()
+    public void ZoomInOut()
     {
-        mCamEffect.material = cameraEffectMat[1];
-        mCamEffect.enabled = true;
-        StartCoroutine(fadeINOUT());
+        StartCoroutine("zoomINOUT");
+        mMode = CameraMode.ZOOM;
     }
 
     void Start()
@@ -144,11 +135,11 @@ public class PlayerCamera : MonoBehaviour
 
         mShakingTime = mShakingTimeOrigin;
 
-        mCamEffect =transform.GetChild(0).GetComponent<MainCamEffect>();
+        mCamEffect = transform.GetChild(0).GetComponent<MainCamEffect>();
         cameraEffectMat[0].SetFloat("_Grayscale", 0);
         cameraEffectMat[1].SetFloat("_Fade", 0);
 
-
+        camEffect = GetComponent<CameraEffect>();
     }
 
     // Update is called once per frame
@@ -170,8 +161,10 @@ public class PlayerCamera : MonoBehaviour
 
                 Quaternion rot = Quaternion.Euler(rotX, rotY, 0);
                 transform.rotation = rot;
-                Quaternion rotP = Quaternion.Euler(0, rotY, 0);
-                mPlayerTrans.transform.rotation = rotP;
+
+                // Camera direction = Player Look Direction : q
+                //Quaternion rotP = Quaternion.Euler(0, rotY, 0);
+                //mPlayerTrans.transform.rotation = rotP;
             }
         }
         
@@ -179,7 +172,7 @@ public class PlayerCamera : MonoBehaviour
 
     private void FixedUpdate()
     {
-        //player ���� �ٴϱ�
+        //player 따라 다니기
         if (mMode == CameraMode.FOLLOW)
         {
             if (mFollowTrans != null)
@@ -201,8 +194,8 @@ public class PlayerCamera : MonoBehaviour
         }
         else if(mMode == CameraMode.NPC)
         {
-            mTrans.position = Vector3.Lerp(mTrans.position, transform.position+NPCmargin, Time.deltaTime * smoothness);
-            mTrans.rotation = Quaternion.LookRotation((mFollowTrans.position+Vector3.up*1.1f) - mTrans.position);
+            mTrans.position = Vector3.Lerp(mTrans.position, transform.position + NPCmargin, Time.deltaTime * smoothness);
+            mTrans.rotation = Quaternion.LookRotation((mFollowTrans.position + Vector3.up * 1.1f) - mTrans.position);
         }
         else if(mMode==CameraMode.ZOOM)
         {
@@ -214,12 +207,7 @@ public class PlayerCamera : MonoBehaviour
 
     }
 
-    public void ZoomInOut()
-    {
-        StartCoroutine("zoomINOUT");
-        mMode = CameraMode.ZOOM;
-    }
-
+    // Intro 특수 움직임 : CameraWorking에 특수 효과로 구현
     IEnumerator IntroCameraWalking()
     {
         yield return new WaitForSeconds(10.0f);
@@ -227,16 +215,17 @@ public class PlayerCamera : MonoBehaviour
         FadeINOUTEffect();
         //StartCoroutine(fadeINOUT());
 
-        yield return new WaitForSeconds(appliedTime);
+        yield return new WaitForSeconds(2.0f);
 
         mTrans.transform.position = mFollowCamTrans;
         mTrans.transform.localRotation = Quaternion.Euler(45, 0, 0);
         mPlayerTrans.GetComponent<UserPlayerCtrl>().mPlayerState = 0;
         mMode = CameraMode.FOLLOW;
-        mBossMapInfo.startBattle(mBossMapInfo.player);
+        mBossMapInfo.StartBattle(mBossMapInfo.player);
         uiM.ActiveBossState(mBossMapInfo.mBossInfo);
     }
 
+    // Shaking 기능 : CameraWorking
     IEnumerator CameraShaking(float time)
     {
         yield return new WaitForSeconds(time);
@@ -257,22 +246,21 @@ public class PlayerCamera : MonoBehaviour
         yield break;
     }
 
-    IEnumerator gameOver()
+    // 게임 오버 -> GrayScale
+    public void GameOverEffect()
     {
-        float elapsedTime = 0.0f;
-
-        while (elapsedTime < appliedTime)
-        {
-            elapsedTime += Time.deltaTime;
-
-            grayScale = elapsedTime / appliedTime;
-            cameraEffectMat[0].SetFloat("_Grayscale", grayScale);
-            yield return null;
-        }
-
-        uiM.GameOverUI();
+        mCamEffect.material = cameraEffectMat[0];
+        mCamEffect.enabled = true;
+        StartCoroutine(camEffect.gameOver());
     }
 
+    // GameOver은 화면을 회색으로 : CameraEffect
+    public void FadeINOUTEffect()
+    {
+        StartCoroutine(camEffect.FadeINOUT());
+    }
+
+    // Zoom 기능 : CameraWorking
     IEnumerator zoomINOUT()
     {
         mZoom = ZoomMode.IN;
@@ -293,36 +281,6 @@ public class PlayerCamera : MonoBehaviour
             yield return null;
         }
         mMode = CameraMode.FOLLOW;
-    }
-
-    IEnumerator fadeINOUT()
-    {
-        uiM.SetActiveUI(false);
-
-        float elapsedTime = 0.0f;
-        appliedTime = fadeSpeed / 2;
-        while (elapsedTime < appliedTime)
-        {
-            elapsedTime += Time.deltaTime;
-
-            fadeValue = elapsedTime / appliedTime;
-            cameraEffectMat[1].SetFloat("_Fade", fadeValue);
-            yield return null;
-        }
-
-        yield return new WaitForSeconds(fadeSpeed);
-
-        while (elapsedTime > 0)
-        {
-            elapsedTime -= Time.deltaTime;
-
-            fadeValue = elapsedTime / appliedTime;
-            cameraEffectMat[1].SetFloat("_Fade", fadeValue);
-            yield return null;
-        }
-
-        mCamEffect.enabled = false;
-        uiM.SetActiveUI(true);
     }
 
 }

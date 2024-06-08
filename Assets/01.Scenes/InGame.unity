@@ -43366,16 +43366,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddcbadd87a7027a48b2ef27c377a7c4b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  completed: 0
-  mBossInfo: {fileID: 1512195463}
-  BossIdx: 0
-  bossStartPos: {fileID: 1512195462}
-  bossInitialPos: {fileID: 902253657}
-  playerInitialPos: {fileID: 289242759}
-  blockade: {fileID: 2132307672}
-  player: {fileID: 0}
   gm: {fileID: 719024535}
   bossFieldBGM: {fileID: 8300000, guid: 0e7b158fe617a2e40914a86d37d64dbd, type: 3}
+  player: {fileID: 0}
+  playerInitialPos: {fileID: 289242759}
+  BossIdx: 0
+  mBossInfo: {fileID: 1512195463}
+  bossStartPos: {fileID: 1512195462}
+  bossInitialPos: {fileID: 902253657}
+  completed: 0
+  blockade: {fileID: 2132307672}
   reward:
     gold: 500
     itemIds: 0
@@ -46445,7 +46445,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1553375658}
   m_Direction: 2
   m_Value: 0
-  m_Size: 0.99983793
+  m_Size: 0.9991247
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -66120,7 +66120,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -0.000011185897}
+  m_AnchoredPosition: {x: 0, y: 0.0000124787375}
   m_SizeDelta: {x: 0, y: 270}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1643050151
