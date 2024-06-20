@@ -5,7 +5,7 @@ using UnityEngine;
 public class BossMapInfo : MonoBehaviour
 {
     public bool completed = false;
-    public BossEntity mBossInfo;
+    public BossEntity bossEntity;
     public int BossIdx;
     public Transform bossStartPos;
     public Transform bossInitialPos;
@@ -15,11 +15,12 @@ public class BossMapInfo : MonoBehaviour
     public GameManager gm;
     public AudioClip bossFieldBGM;
     public RewardPackage reward;
+
     // Start is called before the first frame update
 
-    public void startBattle(LivingEntity player)
+    public void StartBattle(LivingEntity player)
     {
-        mBossInfo.StartBattle(player);
+        bossEntity.StartBattle(player);
         gm.ChangeBGM(bossFieldBGM);
         gm.SetActiveBGM(true);
     }
