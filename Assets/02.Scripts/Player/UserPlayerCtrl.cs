@@ -85,6 +85,7 @@ public class UserPlayerCtrl : LivingEntity
 
     Transform  playerObj;
 
+    public Transform character;
     public PlayerCamera mCam;
 
     //mouse drag rotation
@@ -118,7 +119,6 @@ public class UserPlayerCtrl : LivingEntity
     {
         playerObj = this.GetComponent<Transform>();
         anim = this.GetComponentInChildren<Animator>();
-        mCam.setPlayerTrans(this.transform.GetChild(1));
         plyRigidbody = this.GetComponent<Rigidbody>();
         AudioSrc = this.GetComponent<AudioSource>();
     }
@@ -150,12 +150,13 @@ public class UserPlayerCtrl : LivingEntity
         if (bDead) mPlayerState = PlayerState.DEATH;
         if (mPlayerState != PlayerState.DEATH)
         {
-            if (mPlayerState==PlayerState.IDLE||mPlayerState==PlayerState.MOVE)
+            if (mPlayerState==PlayerState.IDLE || mPlayerState==PlayerState.MOVE)
             {
                 moveDir = Vector3.zero;
                 if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.A))
                 {
                     InputMove();
+                    // mCam.setCameraMode(PlayerCamera.CameraMode.FOLLOW, playerObj);
                 }
                 else
                 {
@@ -171,9 +172,6 @@ public class UserPlayerCtrl : LivingEntity
                 }
 
                 InputSkill();
-
-               
-
             }
             else if(mPlayerState != PlayerState.INTRO)
             {
@@ -223,16 +221,6 @@ public class UserPlayerCtrl : LivingEntity
         }
     }
 
-    private void FixedUpdate()
-    {
-        if (moveDir != Vector3.zero) {
-            moveDir.y = 0;
-            transform.rotation = Quaternion.Lerp(transform.rotation,Quaternion.LookRotation(moveDir),Time.deltaTime* rotSpeed);
-
-            plyRigidbody.MovePosition(transform.position + moveDir * moveSpeed * Time.deltaTime);
-        }
-    }
-
     public override void OnDamage(float damage, float delayTime, Vector3 attackDir)
     {
         if (mPlayerState != PlayerState.SKILL)
@@ -254,10 +242,27 @@ public class UserPlayerCtrl : LivingEntity
 
     void InputMove()
     {
-        if (Input.GetKey(KeyCode.W)) { moveDir += mCam.transform.forward; }
-        if (Input.GetKey(KeyCode.S)) { moveDir += -mCam.transform.forward; }
-        if (Input.GetKey(KeyCode.D)) { moveDir += mCam.transform.right; }
-        if (Input.GetKey(KeyCode.A)) { moveDir += -mCam.transform.right; }
+        Vector2 moveInput = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
+        bool isMove = moveInput.magnitude != 0;
+
+        if (isMove)
+        {
+            Vector3 lookForward = mCam.transform.forward.normalized;
+            Vector3 lookRight = mCam.transform.right.normalized;
+
+            lookForward.y = 0;  // lock : y value 
+            lookRight.y = 0;
+
+            moveDir = lookForward * moveInput.y + lookRight * moveInput.x;
+            character.forward = moveDir;
+            plyRigidbody.MovePosition(transform.position + moveDir * moveSpeed * 10 * Time.deltaTime);
+        }
+
+        //if (Input.GetKey(KeyCode.W)) { moveDir += transform.forward; }
+        //if (Input.GetKey(KeyCode.S)) { moveDir += -transform.forward; }
+        //if (Input.GetKey(KeyCode.D)) { moveDir += transform.right; }
+        //if (Input.GetKey(KeyCode.A)) { moveDir += -transform.right; }
+
         if (Input.GetKey(KeyCode.LeftShift) && mFastRunGauge > 0)
         {
             moveSpeed = 5.0f;
@@ -465,8 +470,8 @@ public class UserPlayerCtrl : LivingEntity
                     animState = animationState.IDLE;
                     anim.SetInteger("State", (int)animationState.IDLE);
                     moveDir = Vector3.zero;
-                    StartCoroutine("DelayedTeleport", mCam.fadeSpeed);
-                    mCam.FadeINOUTEffect();
+                    StartCoroutine( DelayedTeleport(3.0f) );
+                    mCam.EffectFadeInOut();
                     gm.SetActiveBGM(false);
                     gm.ChangeBGM(potal.bgmNum);
                 }
@@ -474,12 +479,13 @@ public class UserPlayerCtrl : LivingEntity
             else if (collision.tag == "BossMap")
             {
                 BossMapInfo bossMapInfo = collision.GetComponent<BossMapInfo>();
-                mCam.IntroCamera(bossMapInfo);
-                bossMapInfo.mBossInfo.mIntro = true;
                 bossMapInfo.player = this.GetComponent<LivingEntity>();
+                mCam.BossCutScene(bossMapInfo);
+                bossMapInfo.bossEntity.mIntro = true;
                 uiM.SetActiveUI(false);
                 transform.position = bossMapInfo.playerInitialPos.position;
-                transform.rotation = bossMapInfo.playerInitialPos.rotation;
+                transform.LookAt(bossMapInfo.bossStartPos);
+                //transform.rotation = bossMapInfo.playerInitialPos.rotation;
                 collision.enabled = false;
                 bossMapInfo.blockade.SetActive(true);
                 mPlayerState = PlayerState.INTRO;
@@ -578,7 +584,7 @@ public class UserPlayerCtrl : LivingEntity
         this.uiM = uiM;
     }
 
-    public int getInteractMode() { return (int)mInteractState; }
+    public InteractState getInteractMode() { return mInteractState; }
 
     public void setInteractMode(int modeNum) { 
         mInteractState=(InteractState)modeNum;
@@ -591,11 +597,12 @@ public class UserPlayerCtrl : LivingEntity
     IEnumerator DelayedTeleport(float delayTime)
     {
         yield return new WaitForSeconds(delayTime);
-        transform.position = teleportPos.position+teleportPos.forward*5f;
+        transform.position = teleportPos.position + teleportPos.forward * 5f;
         yield return new WaitForSeconds(delayTime);
         mPlayerState = PlayerState.IDLE;
         gm.SetActiveBGM(true);
         //������ ���
+
         uiM.StartMapInfoAnimation();
     }
    
@@ -730,8 +737,8 @@ public class UserPlayerCtrl : LivingEntity
         mPlayerState = PlayerState.KILLED;
         animSpeed = 0.5f;
         anim.SetFloat("animSpeed", animSpeed);
-        mCam.ZoomInOut();
-        mCam.ShakingCamera(skillAnimTime[3] / 3 * (1 / anim.speed));
+        mCam.EffectZoomInOut();
+        mCam.EffectShakingCamera(skillAnimTime[3] / 3 * (1 / anim.speed), 1.0f);
         gm.UpdateHuntQuestState(monKind,monIdx);
     }
 

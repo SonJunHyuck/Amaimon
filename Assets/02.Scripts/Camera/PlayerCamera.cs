@@ -7,280 +7,177 @@ using static UnityEngine.GraphicsBuffer;
 
 public class PlayerCamera : MonoBehaviour
 {
-    Transform mTrans;  // main camera
-    Transform mFollowTrans;
-    Vector3 mFollowCamTrans;
-    Transform mPlayerTrans;
-    Transform mTarget;
-    BossMapInfo mBossMapInfo;
-
-    [Header("Parameter")]
-    public float clampAngle = 70f;
-    public float sensitivity;
-    public float followSpeed = 5f;
-    public float fadeSpeed = 3.0f;
-
-    private float rotX;
-    private float rotY;
-
-    public Vector3 margin;
-    public Vector3 NPCmargin;
-    public Vector3 dirNormalized;
-    public Vector3 finalDir;
-    float standardMinZoom;
-    float standardMaxZoom;
-    public float minDistance;
-    public float maxDistance;
-    public float finalDistance;
-    public float smoothness = 10f;
-
-    enum CameraMode
+    public enum CameraMode
     {
-        FOLLOW,NPC,INTRO,BOSS_END,ZOOM
+        IDLE, FOLLOW, NPC, INTRO, BOSS_END, ZOOM, HOLD
     }
-    CameraMode mMode;
-
-    enum ZoomMode
-    {
-        IN,OUT
-    }
-    ZoomMode mZoom;
-
-    public bool bShakingCam;
-    public float mShakeAmount;
-    public float mShakingTime;
-    private float mShakingTimeOrigin=0.1f;
-    float mShakingTimer;
-    IEnumerator eShakingCoroutine;
-
-    public Material[] cameraEffectMat;
-    MainCamEffect mCamEffect;
-
-    float grayScale = 0.0f;
+    CameraMode camMode;
 
     public UIManager uiM;
 
+    private Transform player;
+
+    public Transform target;
+    public Vector3 direction;
+
+    private Camera mainCam;
+    private Camera specialCam;
+
+    private CameraMovement camMovement;
     private CameraEffect camEffect;
 
-    public void setPlayerTrans(Transform playerTrans) { 
-        mFollowTrans = playerTrans;
-        mFollowCamTrans = playerTrans.position;
-    }
+    [SerializeField]
+    private Renderer obstacleRenderer;
 
-    public void setCameraMode(int camMode, Transform followTrans)
+    private void Awake()
     {
-        mMode = (CameraMode)camMode;
-        if (mMode == CameraMode.NPC)
-        {
-            NPCmargin = (mFollowTrans.position + mFollowTrans.right * 2f) - (followTrans.position + Vector3.up * 1.2f);
-            mTrans.position += NPCmargin * 2;
-            mFollowTrans = followTrans;
-        }
-        else if(mMode == CameraMode.FOLLOW)
-        {
-            mFollowTrans = followTrans;
-            //mFollowTrans.position = mFollowCamTrans; 
-            mTrans.localRotation = Quaternion.Euler(Vector3.right * 45f);
-        }
-    }
+        camMode = CameraMode.FOLLOW;
 
-    // 보스 출현 연출
-    public void IntroCamera(BossMapInfo bossMapInfo)
-    {
-        mMode = CameraMode.INTRO;
-        mFollowCamTrans = mTrans.transform.position;
-        mTrans.transform.position = bossMapInfo.bossInitialPos.position+ bossMapInfo.bossInitialPos.forward*20f;
-        mTrans.transform.LookAt(bossMapInfo.bossStartPos.position);
-        mTarget = bossMapInfo.bossStartPos;
-        mBossMapInfo = bossMapInfo;
-        StartCoroutine("IntroCameraWalking");
-        
-    }
+        player = transform.root;
 
-    // 카메라 쉐이킹 호출
-    public void ShakingCamera(float delayTime)
-    {
-        bShakingCam = true;
-        mShakingTime = delayTime + mShakingTimeOrigin;
-        mCamEffect.enabled = true;
-        StartCoroutine("CameraShaking", delayTime);
-    }
+        mainCam = Camera.main;
+        specialCam = transform.Find("Special Camera").GetComponent<Camera>();
 
+        camMovement = GetComponent<CameraMovement>();
+        camEffect = GetComponent<CameraEffect>();
 
-    public void ZoomInOut()
-    {
-        StartCoroutine("zoomINOUT");
-        mMode = CameraMode.ZOOM;
+        target = transform;
     }
 
     void Start()
     {
-        mTrans = this.transform.GetChild(0);
-        mMode = CameraMode.FOLLOW;
-        mZoom = ZoomMode.OUT;
-        eShakingCoroutine = CameraShaking(mShakingTime);
-
-        rotX = transform.localRotation.eulerAngles.x;
-        rotY = transform.localRotation.eulerAngles.y;
-
-        mPlayerTrans = mFollowTrans.parent;
-
-        margin = mTrans.position-transform.position;
-
-        dirNormalized = margin.normalized;
-        finalDistance = margin.magnitude;
-
-        standardMaxZoom = finalDistance;
-        standardMinZoom = minDistance;
-
-        mShakingTime = mShakingTimeOrigin;
-
-        mCamEffect = transform.GetChild(0).GetComponent<MainCamEffect>();
-        cameraEffectMat[0].SetFloat("_Grayscale", 0);
-        cameraEffectMat[1].SetFloat("_Fade", 0);
-
-        camEffect = GetComponent<CameraEffect>();
+        direction = target.transform.position - mainCam.transform.position;
+        camMovement.ZoomCamera(4);
     }
 
-    // Update is called once per frame
-    void Update()
+    private void LateUpdate()
     {
-        if (mMode == CameraMode.INTRO)
+        if (camMode == CameraMode.HOLD)
         {
-            mTrans.position = Vector3.Lerp(mTrans.position, mFollowTrans.position+ mTrans.forward*25f+mTrans.up*2f, Time.deltaTime);
-            mTrans.transform.rotation = Quaternion.LookRotation(mTarget.position - mTrans.transform.position);
+            return;
+        }
+        else if (camMode == CameraMode.FOLLOW || camMode == CameraMode.NPC)
+        {
+            camMovement.TrackingTarget();
+
+            direction = target.transform.position - mainCam.transform.position;
+
+            //.. 장애물에 플레이어가 가려지면 장애물 반투명
+            DetectObstacle();
+
+            if (Input.GetMouseButton(1))
+            {
+                camMovement.RotateCamera();
+            }
+
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (scroll != 0.0f)
+            {
+                camMovement.ZoomCamera(-scroll);
+            }
+        }
+    }
+
+    private void DetectObstacle()
+    {
+        float distance = direction.magnitude;
+
+        // 1. Ray발사 : Camera -> Target
+        RaycastHit hit;
+        if (Physics.Raycast(mainCam.transform.position, direction.normalized, out hit, distance, 1 << 7))
+        {
+            // 2.맞았으면 Renderer를 얻어온다. (1 << 7은 Obstacle Layer)
+            obstacleRenderer = hit.transform.GetComponentInChildren<Renderer>();
+
+            // 3. Metrial의 Aplha를 바꾼다.
+            if (obstacleRenderer != null)
+            {
+                float opacity = 0.5f;
+                camEffect.MakeToTransparent(obstacleRenderer, UtilityKit.BlendMode.Transparent, opacity);
+            }
         }
         else
         {
-            if (Input.GetMouseButton(1))
+            // 4. 카메라에 걸리는게 없는데, 장애물로 걸려있는 것이 있으면 해제
+            if (obstacleRenderer != null)
             {
-                rotX += -Input.GetAxis("Mouse Y") * sensitivity * Time.deltaTime;
-                rotY += Input.GetAxis("Mouse X") * sensitivity * Time.deltaTime;
-
-                rotX = Mathf.Clamp(rotX, -clampAngle, clampAngle);
-
-                Quaternion rot = Quaternion.Euler(rotX, rotY, 0);
-                transform.rotation = rot;
-
-                // Camera direction = Player Look Direction : q
-                //Quaternion rotP = Quaternion.Euler(0, rotY, 0);
-                //mPlayerTrans.transform.rotation = rotP;
+                float opacity = 1.0f;
+                camEffect.MakeToTransparent(obstacleRenderer, UtilityKit.BlendMode.Opaque, opacity);
+                obstacleRenderer = null;
             }
         }
-        
     }
 
-    private void FixedUpdate()
+    public void SetCameraMode(CameraMode camMode, Transform inTarget)
     {
-        //player 따라 다니기
-        if (mMode == CameraMode.FOLLOW)
-        {
-            if (mFollowTrans != null)
-            {
-                transform.position = mFollowTrans.position;
-                finalDir = transform.TransformPoint(dirNormalized * maxDistance);
+        this.camMode = camMode;
+        target = inTarget;
 
-                RaycastHit hit;
-                if(Physics.Linecast(transform.position,finalDir,out hit))
-                {
-                    finalDistance = Mathf.Clamp(hit.distance, minDistance, maxDistance);
-                }
-                else
-                {
-                    finalDistance = maxDistance;
-                }
-                mTrans.localPosition = Vector3.Lerp(mTrans.localPosition, dirNormalized * finalDistance, Time.deltaTime * smoothness);
-            }
-        }
-        else if(mMode == CameraMode.NPC)
+        if (this.camMode == CameraMode.NPC)
         {
-            mTrans.position = Vector3.Lerp(mTrans.position, transform.position + NPCmargin, Time.deltaTime * smoothness);
-            mTrans.rotation = Quaternion.LookRotation((mFollowTrans.position + Vector3.up * 1.1f) - mTrans.position);
+            StartCoroutine(camMovement.MoveCameraLerp(inTarget.GetChild(2).position));
         }
-        else if(mMode==CameraMode.ZOOM)
+        else if (this.camMode == CameraMode.FOLLOW)
         {
-            transform.position = mFollowTrans.position;
-            finalDir = transform.TransformPoint(dirNormalized * maxDistance);
-
-            mTrans.localPosition = Vector3.Lerp(mTrans.localPosition, dirNormalized * finalDistance, Time.deltaTime * smoothness);
+            camMovement.ResetPosition();
         }
-
     }
 
-    // Intro 특수 움직임 : CameraWorking에 특수 효과로 구현
-    IEnumerator IntroCameraWalking()
+    public void EffectGameOver()
     {
-        yield return new WaitForSeconds(10.0f);
-
-        FadeINOUTEffect();
-        //StartCoroutine(fadeINOUT());
-
-        yield return new WaitForSeconds(2.0f);
-
-        mTrans.transform.position = mFollowCamTrans;
-        mTrans.transform.localRotation = Quaternion.Euler(45, 0, 0);
-        mPlayerTrans.GetComponent<UserPlayerCtrl>().mPlayerState = 0;
-        mMode = CameraMode.FOLLOW;
-        mBossMapInfo.StartBattle(mBossMapInfo.player);
-        uiM.ActiveBossState(mBossMapInfo.mBossInfo);
+        StartCoroutine(camEffect.GrayScale());
     }
 
-    // Shaking 기능 : CameraWorking
-    IEnumerator CameraShaking(float time)
+    public void EffectFadeInOut()
     {
-        yield return new WaitForSeconds(time);
-
-        while (mShakingTimer < mShakingTime)
-        {
-            mShakingTimer += Time.deltaTime;
-            transform.position = UnityEngine.Random.insideUnitSphere * mShakeAmount + transform.position;
-            yield return new WaitForEndOfFrame();
-        }
-
-        mShakingTimer = 0.0f;
-        bShakingCam = false;
-        Time.timeScale = 1.0f;
-
-        mCamEffect.enabled = false;
-
-        yield break;
+        StartCoroutine(camEffect.FadeInOut(3.0f));
     }
 
-    // 게임 오버 -> GrayScale
-    public void GameOverEffect()
+    public void EffectZoomInOut()
     {
-        mCamEffect.material = cameraEffectMat[0];
-        mCamEffect.enabled = true;
-        StartCoroutine(camEffect.gameOver());
+        //camMode = CameraMode.ZOOM;
+        StartCoroutine(camMovement.ZoomInOut());
     }
 
-    // GameOver은 화면을 회색으로 : CameraEffect
-    public void FadeINOUTEffect()
+    public void EffectShakingCamera(float delayTime, float shakingTime, float shakingAmount = 10)
     {
-        StartCoroutine(camEffect.FadeINOUT());
+        StartCoroutine(camMovement.ShakeCamera(delayTime, shakingTime, shakingAmount));
     }
 
-    // Zoom 기능 : CameraWorking
-    IEnumerator zoomINOUT()
+    public void BossCutScene(BossMapInfo bossMapInfo)
     {
-        mZoom = ZoomMode.IN;
-        while (finalDistance > maxDistance/2)
-        {
-            finalDistance -= Time.deltaTime*4.0f;
+        camMode = CameraMode.HOLD;  // 사용 못하게 막기
 
-            yield return null;
-        }
+        StartCoroutine(StartBossCutScene(bossMapInfo));
+    }
 
-        yield return new WaitForSeconds(0.5f);
+    IEnumerator StartBossCutScene(BossMapInfo bossMapInfo)
+    {
+        yield return StartCoroutine(camEffect.FadeOut());
+        uiM.SetActiveUI(false);
 
-        mZoom = ZoomMode.OUT;
-        while (finalDistance == maxDistance)
-        {
-            finalDistance += Time.deltaTime * 5;
+        // CutScene 세팅
+        CameraSpecialFunction cutSceneFunc = specialCam.GetComponent<CameraSpecialFunction>();
+        cutSceneFunc.InitializeCutScene(bossMapInfo.bossEntity.transform, bossMapInfo.playerInitialPos.position + Vector3.up * 2.0f);
+        specialCam.gameObject.SetActive(true);
+        mainCam.gameObject.SetActive(false);
 
-            yield return null;
-        }
-        mMode = CameraMode.FOLLOW;
+        // CutScene 지속 시간 (Special Cam이 동작하는 시간)
+        yield return new WaitForSeconds(9.0f);
+
+        specialCam.gameObject.SetActive(false);
+        mainCam.gameObject.SetActive(true);
+
+        yield return StartCoroutine(camEffect.FadeOut());
+
+        // TODO : Broadcast
+        // 전투 시작
+        bossMapInfo.StartBattle(bossMapInfo.player);
+        player.GetComponent<UserPlayerCtrl>().mPlayerState = UserPlayerCtrl.PlayerState.IDLE;
+        uiM.SetActiveUI(true);
+        uiM.ActiveBossState(bossMapInfo.bossEntity);
+
+        camMode = CameraMode.FOLLOW;
     }
 
 }

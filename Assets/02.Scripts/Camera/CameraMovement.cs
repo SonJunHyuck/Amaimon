@@ -1,9 +1,6 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
-using System.Text;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public class CameraMovement : MonoBehaviour
 {
@@ -11,6 +8,7 @@ public class CameraMovement : MonoBehaviour
     {
         Idle,
         Tracking,
+        Moving,
         Shaking,
         ZoomIn,
         ZoomOut,
@@ -18,44 +16,55 @@ public class CameraMovement : MonoBehaviour
     }
     MovementType movementType;
 
-    private Transform target;
+    private PlayerCamera playerCamera;
+    private Camera cam;
+    private Vector3 direction
+    {
+        get
+        {
+            return playerCamera.direction;
+        }
+    }
+    private Transform target 
+    { 
+        get 
+        {
+            return playerCamera.target;
+        } 
+    }
+
 
     [Header("Tracking Params")]
-    [Range(0.1f, 1.0f)] public float trackingSmoothTime;
-    [Range(1.0f, 4.0f)] public float minDistanceTarget;
-    [Range(6.0f, 10.0f)] public float maxDistanceTarget;
-
-    private Vector2 targetRotation;
-    private float curDistanceTarget;
-
-    private Vector3 curTrackingVelocity;
+    public Vector3 trackingOffset;
+    [Range(0.1f, 1.0f)]
+    public float trackingSmoothTime;
 
     [Header("Rotate Params")]
+    public float clampAngleUpperMin;
+    public float clampAngleUpperMax;
+    public float clampAngleLowerMin;
+    public float clampAngleLowerMax;
     public float rotateSensitivity;
-    private float smoothTime;
-    private Vector3 currentVelocity;
-    private Vector3 currentRotation;
-
-
-    [Header("Shake Params")]
-    public float shakingScale;
 
     [Header("Zoom Params")]
+    [Range(0.1f, 1.0f)]
     public float zoomSpeed;
-    public float zoomInLength;
-    public float zoomOutLength;
+    public float zoomMin;
+    public float zoomMax;
 
     private void Awake()
     {
         movementType = MovementType.Tracking;
 
-        // 카메라와 플레이어 사이의 초기 거리
-        curDistanceTarget = 5.0f;
-    }
+        clampAngleUpperMin = -1f;  // 359
+        clampAngleUpperMax = 70f;
+        clampAngleLowerMin = 335f;
+        clampAngleLowerMax = 361f;  // 1
 
-    public void SetTarget(Transform inTarget)
-    {
-        target = inTarget;
+        playerCamera = GetComponent<PlayerCamera>();
+
+        cam = Camera.main;
+        cam.transform.localPosition = trackingOffset;
     }
 
     public void TrackingTarget()
@@ -65,65 +74,116 @@ public class CameraMovement : MonoBehaviour
             return;
         }
 
-        Vector3 destPos = target.position - transform.forward * curDistanceTarget;
-
-        // 플레이어와 카메라 사이에 물체가 있을 때,
-        RaycastHit hit;
-        if (Physics.Linecast(transform.position, transform.forward, out hit))
-        {
-            float zoomDistanceTarget = Mathf.Clamp(hit.distance, minDistanceTarget, curDistanceTarget);
-
-            destPos = target.position - transform.forward * zoomDistanceTarget;
-        }
-
-        transform.position = Vector3.SmoothDamp(transform.position, destPos, ref curTrackingVelocity, 0.2f);  // 0.2초만에 따라가기
+        cam.transform.LookAt(target);
     }
 
-    public void RotateCamera(Vector2 inputAxis)
+    public void RotateCamera()
     {
-        // X축 회전 (위 아래)는 -로 갈 수록 위로 본다.
-        targetRotation.y += inputAxis.x * rotateSensitivity;
-        targetRotation.x -= inputAxis.y * rotateSensitivity;
+        Vector2 inputAxis = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+        Vector3 camAngle = transform.rotation.eulerAngles;
 
-        currentRotation = Vector3.SmoothDamp(currentRotation, targetRotation, ref currentVelocity, smoothTime);
-        transform.eulerAngles = targetRotation;
+        float rotateX = camAngle.x - inputAxis.y * rotateSensitivity;  // X축 회전 (위 아래)는 -로 갈 수록 위로 본다.
+        float rotateY = camAngle.y + inputAxis.x * rotateSensitivity;
+
+        if(rotateX < 180f)
+        {
+            rotateX = Mathf.Clamp(rotateX, clampAngleUpperMin, clampAngleUpperMax);
+        }
+        else
+        {
+            rotateX = Mathf.Clamp(rotateX, clampAngleLowerMin, clampAngleLowerMax);
+        }
+        
+        transform.rotation = Quaternion.Euler(rotateX, rotateY, camAngle.z);
     }
 
     public void ZoomCamera(float zoomValue)
     {
-        // positive : zoomin
-        curDistanceTarget -= Time.deltaTime * zoomValue * zoomSpeed;
-        curDistanceTarget = Mathf.Clamp(curDistanceTarget, minDistanceTarget, maxDistanceTarget);
+        // cam to target
+        float distance = direction.magnitude;
+
+        // negative : ZoomIn
+        distance += zoomValue;
+        distance = Mathf.Clamp(distance, zoomMin, zoomMax);
+
+        cam.transform.position = target.position - direction.normalized * distance;
     }
 
-    public IEnumerator ShakeCamera(float delay, float duration)
+    public IEnumerator ZoomInOut()
     {
-        if (movementType != MovementType.Tracking)
+        while (direction.magnitude > zoomMin)
         {
-            // todo : string builder
-            Debug.Log("Camera is moving with another order : " + movementType.ToString());
-            yield break;
-        }
-        movementType = MovementType.Shaking;
+            ZoomCamera(-Time.deltaTime * 2.0f);
 
-        // Time.timeScale = 1.0f;
+            yield return null;
+        }
+
+        while (direction.magnitude < zoomMax)
+        {
+            ZoomCamera(Time.deltaTime * 2.0f);
+
+            yield return null;
+        }
+    }
+
+    public IEnumerator MoveCameraLerp(Vector3 targetPos, float duration = 1.0f)
+    {
+        //if (movementType == MovementType.Moving)
+        //{
+        //    yield break;
+        //}
+
+        movementType = MovementType.Moving;
+
+        float t = 0;
+        Vector3 originPos = cam.transform.position;
+        while(t < 1.0f)
+        {
+            cam.transform.position = Vector3.Lerp(originPos, targetPos, t / duration);
+            cam.transform.LookAt(targetPos);
+            t += Time.deltaTime;
+            yield return null;
+        }
+
+        cam.transform.position = targetPos;
+        movementType = MovementType.Idle;
+    }
+
+    public IEnumerator ShakeCamera(float delay, float duration, float amount)
+    {
+        //if (movementType != MovementType.Tracking)
+        //{
+        //    // todo : string builder
+        //    Debug.Log("Camera is moving with another order : " + movementType.ToString());
+        //    yield break;
+        //}
+        movementType = MovementType.Shaking;
 
         yield return new WaitForSeconds(delay);
 
         // .. 동작 시작
-        Vector3 originPos = transform.localPosition;
+        Vector3 originPos = cam.transform.localPosition;
         while (duration > 0)
         {
-            transform.localPosition = originPos + UnityEngine.Random.insideUnitSphere * shakingScale * Time.deltaTime;
+            cam.transform.localPosition = originPos + UnityEngine.Random.insideUnitSphere * amount * Time.deltaTime;
             duration -= Time.deltaTime;
 
             yield return null;
         }
 
         // .. 원상 복귀
-        transform.localPosition = originPos;
+        cam.transform.localPosition = originPos;
 
-        movementType = MovementType.Tracking;
+        movementType = MovementType.Idle;
     }
 
+    public void ResetPosition()
+    {
+        cam.transform.localPosition = trackingOffset;
+
+        if (target != null)
+        {
+            cam.transform.LookAt(target);
+        }
+    }
 }
