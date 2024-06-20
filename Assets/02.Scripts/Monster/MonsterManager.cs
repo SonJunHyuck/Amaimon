@@ -66,7 +66,7 @@ public class MonsterManager : MonoBehaviour
             spawnMonsters();
         }
 
-        if(currentBoss!=null&&currentBoss.mBossInfo.bDead && !currentBoss.completed)
+        if(currentBoss!=null&&currentBoss.bossEntity.bDead && !currentBoss.completed)
         {
             bossPackage = currentBoss.GetRewardPakage();
             currentBoss.EndBattle();
