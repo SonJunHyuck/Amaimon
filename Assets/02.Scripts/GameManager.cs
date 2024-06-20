@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.GlobalIllumination;
 using static UnityEditor.Experimental.GraphView.GraphView;
@@ -41,7 +42,8 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if ((int)mPlayer.mPlayerState != 8) { 
+        if ((int)mPlayer.mPlayerState != 8) 
+        { 
              //시간 흐르게 하기
             //mWorldClock -= Time.deltaTime* mDaySpeed;
             //Sun.transform.rotation = Quaternion.Euler(mWorldClock,-100,0);
@@ -50,28 +52,29 @@ public class GameManager : MonoBehaviour
             uiM.UpdateRunGuage(mPlayer.getFastRunGage());
             uiM.UpdateHPGuage(mPlayer.getHPGage());
 
+            UserPlayerCtrl.InteractState interactState = mPlayer.getInteractMode();
             if (Input.GetKeyDown(KeyCode.F))
             {
-                if (mPlayer.getInteractMode() == 1 || mPlayer.getInteractMode() == 2)
+                if (interactState == UserPlayerCtrl.InteractState.READY || interactState == UserPlayerCtrl.InteractState.TALKING)
                 {
                     mPlayer.bIsMove = uiM.GetIsEndComment();
                     int interactNPCID = mPlayer.interactNPCID;
 
-                    if (mPlayer.getInteractMode() == 1 && !mPlayer.bIsMove)
+                    if (interactState == UserPlayerCtrl.InteractState.READY && !mPlayer.bIsMove)
                     {
                         uiM.disableCommentTip();
                         if (mPlayer.InteractNPCKind == 0)
                         {
-                            mPlayer.setInteractMode(2);
+                            mPlayer.setInteractMode((int)UserPlayerCtrl.InteractState.TALKING);
                             uiM.startNPCComment(interactNPCID, npcM.GetComment(interactNPCID), npcM.GetQuestState(interactNPCID));
-                            mPlayer.mCam.setCameraMode(1, npcM.getNPCTrans(mPlayer.interactNPCID));
+                            mPlayer.mCam.SetCameraMode(PlayerCamera.CameraMode.NPC, npcM.getNPCTrans(mPlayer.interactNPCID));
                         }
                         else
                         {
-                            mPlayer.setInteractMode(3);
+                            mPlayer.setInteractMode((int)UserPlayerCtrl.InteractState.BUYING);
                             uiM.startNPCComment(interactNPCID, npcM.GetShopComment(interactNPCID), npcM.GetShopKind(interactNPCID));
                             uiM.StartOfShop(npcM.getShopNPCCon(interactNPCID));
-                            mPlayer.mCam.setCameraMode(1, npcM.getShopNPCTrans(mPlayer.interactNPCID));
+                            mPlayer.mCam.SetCameraMode(PlayerCamera.CameraMode.NPC, npcM.getShopNPCTrans(mPlayer.interactNPCID));
                         }
 
                         npcM.InteractiveWithPlayer(mPlayer.interactNPCID, mPlayer.transform.position, mPlayer.InteractNPCKind);
@@ -79,8 +82,8 @@ public class GameManager : MonoBehaviour
                     }
                     else if (mPlayer.bIsMove)
                     {
-                        mPlayer.setInteractMode(0);
-                        mPlayer.mCam.setCameraMode(0, mPlayer.transform.GetChild(1));
+                        mPlayer.setInteractMode((int)UserPlayerCtrl.InteractState.NOTHING);
+                        mPlayer.mCam.SetCameraMode(PlayerCamera.CameraMode.FOLLOW, mPlayer.transform.GetChild(1));
                         npcM.UninteractiveWithPlayer(mPlayer.interactNPCID, mPlayer.transform.position, mPlayer.InteractNPCKind);
                         if (npcM.GetQuestState(interactNPCID)==2)
                         {
@@ -102,10 +105,10 @@ public class GameManager : MonoBehaviour
             }
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (mPlayer.getInteractMode() == 3)
+                if (interactState == UserPlayerCtrl.InteractState.BUYING)
                 {
                     mPlayer.setInteractMode(0);
-                    mPlayer.mCam.setCameraMode(0, mPlayer.transform.GetChild(1));
+                    mPlayer.mCam.SetCameraMode(PlayerCamera.CameraMode.FOLLOW, mPlayer.transform.GetChild(1));
                     npcM.UninteractiveWithPlayer(mPlayer.interactNPCID, mPlayer.transform.position, mPlayer.InteractNPCKind);
                     uiM.EndOfShop();
                 }
@@ -113,7 +116,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            playerCam.GameOverEffect();
+            playerCam.EffectGameOver();
         }
     }
 
