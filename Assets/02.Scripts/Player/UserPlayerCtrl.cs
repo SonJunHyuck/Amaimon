@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
@@ -247,8 +247,8 @@ public class UserPlayerCtrl : LivingEntity
 
         if (isMove)
         {
-            Vector3 lookForward = mCam.transform.forward.normalized;
-            Vector3 lookRight = mCam.transform.right.normalized;
+            Vector3 lookForward = mCam.mainCam.transform.forward.normalized;
+            Vector3 lookRight = mCam.mainCam.transform.right.normalized;
 
             lookForward.y = 0;  // lock : y value 
             lookRight.y = 0;
@@ -601,8 +601,6 @@ public class UserPlayerCtrl : LivingEntity
         yield return new WaitForSeconds(delayTime);
         mPlayerState = PlayerState.IDLE;
         gm.SetActiveBGM(true);
-        //������ ���
-
         uiM.StartMapInfoAnimation();
     }
    
@@ -731,7 +729,6 @@ public class UserPlayerCtrl : LivingEntity
             Debug.Log("NO enemies");
     }
 
-
     void killEnemy(int monKind,int monIdx)
     {
         mPlayerState = PlayerState.KILLED;
@@ -756,5 +753,4 @@ public class UserPlayerCtrl : LivingEntity
         anim.SetFloat("animSpeed", animSpeed);
         anim.SetInteger("KnockBack", 0);
     }
-
 }
