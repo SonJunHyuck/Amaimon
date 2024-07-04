@@ -1,6 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using TMPro;
 using Unity.AI.Navigation;
 using UnityEngine;
@@ -8,18 +9,16 @@ using UnityEngine.UI;
 
 public class MonsterManager : MonoBehaviour
 {
-    public Transform[] monsterParentTrans;
-    Transform[] mTempMonsters;
-
+    public Transform[] monsterSpawnPools;  // Monster Group
     public GameObject[] monsterPrefab;
 
-    public List<MonsterGroup> monsters;
-    public Vector3[] mMonsterZone;
+    public List<MonsterGroup> monsterGroupList;
+    public Vector3[] monsterZone;
     public NavMeshSurface[] navMeshSurfaces;
 
     public BossMapInfo[] bossMap;
     public Transform[] bossParentTrans;
-    public Vector3[] mBossZone;
+    public Vector3[] bossZone;
 
     BossMapInfo currentBoss;
 
@@ -30,43 +29,55 @@ public class MonsterManager : MonoBehaviour
 
     RewardPackage bossPackage;
 
-    [Header("�� Enemy Info")]
+    [Header("▶ Enemy Info")]
     public GameObject mEnemyInfo;
     public Transform mEnemyHPParent;
 
-    // Start is called before the first frame update
     void Start()
     {
-        monsters =new List<MonsterGroup>() ;
-        mMonsterZone = new Vector3[monsterParentTrans.Length];
-        for (int i=0;i<monsterParentTrans.Length;i++)
+        monsterGroupList = new List<MonsterGroup>() ;
+        monsterZone = new Vector3[monsterSpawnPools.Length];
+
+        for (int i = 0; i < monsterSpawnPools.Length; i++)
         {
-            mTempMonsters = new Transform[monsterParentTrans[i].childCount-1];
-            for (int j = 1; j <= mTempMonsters.Length; j++) { mTempMonsters[j-1] = monsterParentTrans[i].GetChild(j); }
-            monsters.Add(new MonsterGroup(mTempMonsters));
-            mMonsterZone[i] = monsterParentTrans[i].GetChild(0).localScale;
+            // TODO : 구 생성 -> 위치 확인 -> 엑셀로 위치 범위 저장 -> 나중에 불러오기
+            int spawnCount = 5;
+            Transform monsterSpawnPool = monsterSpawnPools[i];
+            Transform[] monsters = new Transform[spawnCount];
+
+            for (int j = 0; j < spawnCount; j++)
+            {
+                GameObject spawnedMonster = PoolManager.instance.Get(i);
+                Vector3 spawnPos = monsterSpawnPool.GetComponentInChildren<SpawnArea>().GetValidPosition();
+                spawnedMonster.transform.position = spawnPos;
+                spawnedMonster.transform.SetParent(monsterSpawnPool.transform);
+                spawnedMonster.GetComponent<LivingEntity>().Init();
+                monsters[j] = spawnedMonster.transform;
+            }
+
+            MonsterGroup monsterGroup = new MonsterGroup(monsters);
+            monsterGroupList.Add(monsterGroup);
+            monsterZone[i] = monsterSpawnPools[i].GetChild(0).localScale;
         }
 
-        mBossZone = new Vector3[bossParentTrans.Length];
+        bossZone = new Vector3[bossParentTrans.Length];
         for (int i = 0; i < bossParentTrans.Length; i++)
         {
-            mBossZone[i] = bossParentTrans[i].GetChild(0).localScale;
+            bossZone[i] = bossParentTrans[i].GetChild(0).localScale;
         }
-
-
     }
 
-    // Update is called once per frame
     void Update()
     {
         spawnTimer += Time.deltaTime;
         if (spawnTimer > spawnTime)
         {
             spawnTimer = 0;
-            spawnMonsters();
+            SpawnMonsters();
         }
 
-        if(currentBoss!=null&&currentBoss.bossEntity.bDead && !currentBoss.completed)
+        // Boss Reward
+        if(currentBoss != null && currentBoss.bossEntity.bDead && !currentBoss.completed)
         {
             bossPackage = currentBoss.GetRewardPakage();
             currentBoss.EndBattle();
@@ -75,59 +86,74 @@ public class MonsterManager : MonoBehaviour
             uiM.ActiveRewardUI(bossPackage);
         }
 
-        updateMonsterHPBar();
+        UpdateMonsterHPBar();
     }
 
-    private void spawnMonsters()
+    private void SpawnMonsters()
     {
-        for (int i = 0; i < monsters.Count; i++)
+        for (int i = 0; i < monsterGroupList.Count; i++)
         {
-            for (int j = 0; j < monsters[i].monsters.Length; j++)
+            for (int j = 0; j < monsterGroupList[i].monsterCount; j++)
             {
-                if (monsters[i].monsters[j] == null)
+                MonsterGroup monsterGroup = monsterGroupList[i];
+                if (!monsterGroup.monsterDatas[j].transform.gameObject.activeSelf)
                 {
-                    GameObject questObj = Instantiate(monsterPrefab[i], Vector3.zero, Quaternion.identity);
-                    questObj.transform.parent = monsterParentTrans[i];
-                    monsters[i].SetOriginPosition(j,questObj);
-                    monsters[i].monsters[j] = questObj.transform;
-                    monsters[i].monsterEntity[j] = questObj.GetComponent<LivingEntity>();
-                    monsters[i].monsterEntity[j].navSurface = navMeshSurfaces[monsters[i].monsterEntity[j].mID];
+                    GameObject spawnedMonster = PoolManager.instance.Get(i);
+                    spawnedMonster.transform.parent = monsterSpawnPools[i];  // 부모 설정
+                    spawnedMonster.GetComponent<LivingEntity>().Init();
+                    monsterGroup.SetOriginPosition(j, spawnedMonster);
+                    monsterGroup.monsterDatas[j].transform = spawnedMonster.transform;
+                    //monsterGroup.monsterDatas[j].entity.Init();
+                    //monsterGroup.monsterDatas[j].entity.navSurface = navMeshSurfaces[monsterGroup.monsterDatas[j].entity.mID];
                 }
             }
         }
     }
 
-    void updateMonsterHPBar()
+    void UpdateMonsterHPBar()
     {
-        for (int i = 0; i < monsters.Count; i++)
+        for (int i = 0; i < monsterGroupList.Count; i++)
         {
-            for (int j = 0; j < monsters[i].monsters.Length; j++)
+            for (int j = 0; j < monsterGroupList[i].monsterCount; j++)
             {
-                if (monsters[i].monsters[j] != null&&monsters[i].monsterHPBar[j] != null)
+                MonsterGroup monsterGroup = monsterGroupList[i];
+                
+                // 몬스텨 존재
+                if (monsterGroup.monsterDatas[j].transform != null)
                 {
-                    if (monsters[i].monsterEntity[j].bIsHit)
+                    // 맞았을 때
+                    if (monsterGroup.monsterDatas[j].entity.bIsHit)
                     {
-                        monsters[i].monsterHP[j].position = Camera.main.WorldToScreenPoint(monsters[i].monsters[j].position) + Vector3.up * 100f;
-                        monsters[i].UpdateHPImage(j);
+                        // 이미지가 있다면 업데이트, 없으면 새로 만들어주기
+                        if(monsterGroup.monsterDatas[j].hpBarImage != null)
+                        {
+                            monsterGroup.monsterDatas[j].hpBar.position = Camera.main.WorldToScreenPoint(monsterGroup.monsterDatas[j].transform.position) + Vector3.up * 100f;
+                            monsterGroup.UpdateHPImage(j);
+                        }
+                        else
+                        {
+                            GameObject hpBar = Instantiate(mEnemyInfo, Vector3.zero, Quaternion.identity);
+                            hpBar.transform.parent = mEnemyHPParent;
+                            monsterGroup.AddHPImage(j, hpBar);
+                        }
                     }
                     else
                     {
-                        Destroy(monsters[i].monsterHP[j].gameObject);
-                        monsters[i].RemoveHPImage(j);
+                        if (monsterGroup.monsterDatas[j].hpBarImage != null)
+                        {
+                            // 없애기
+                            Destroy(monsterGroup.monsterDatas[j].hpBar.gameObject);
+                            monsterGroup.RemoveHPImage(j); ;
+                        }
                     }
                 }
-                else if(monsters[i].monsters[j] == null&&monsters[i].monsterHPBar[j] != null)
+                else if(monsterGroup.monsterDatas[j].transform == null)
                 {
-                    Destroy(monsters[i].monsterHP[j].gameObject);                    
-                }
-                else if(monsters[i].monsters[j] != null && monsters[i].monsterHPBar[j] == null)
-                {
-                    if (monsters[i].monsterEntity[j].bIsHit)
+                    if(monsterGroup.monsterDatas[j].hpBarImage != null)
                     {
-                        GameObject hpBar = Instantiate(mEnemyInfo, Vector3.zero, Quaternion.identity);
-                        hpBar.transform.parent = mEnemyHPParent;
-                        monsters[i].AddHPImage(j, hpBar);
-                    }
+                        // 몬스터 없으면 이미지도 같이 없애기
+                        Destroy(monsterGroup.monsterDatas[j].hpBar.gameObject);
+                    }               
                 }
             }
         }
@@ -142,49 +168,70 @@ public class MonsterManager : MonoBehaviour
 [System.Serializable]
 public class MonsterGroup
 {
-    public Transform[] monsters;
-    Vector3[] originPos;
-    public LivingEntity[] monsterEntity;
-    public Transform[] monsterHP;
-    public Image[] monsterHPBar;
-    public bool bIsBoss;
-
-    public MonsterGroup(Transform[] mon, bool bIsBoss=false)
+    public struct MonsterData
     {
-        monsters = mon;
-        originPos = new Vector3[mon.Length];
-        monsterEntity = new LivingEntity[mon.Length];
-        monsterHP = new Transform[mon.Length];
-        monsterHPBar = new Image[mon.Length];
-        for (int i=0;i< mon.Length; i++)
+        public Transform transform;
+        public Transform hpBar;
+        public Image hpBarImage;
+        public Vector3 position
         {
-            originPos[i] = mon[i].localPosition;
-            monsterEntity[i] = mon[i].GetComponent<LivingEntity>();
+            get
+            {
+                return transform.localPosition;
+            }
         }
-        this.bIsBoss = bIsBoss;
+        public LivingEntity entity
+        {
+            get
+            {
+                return transform.GetComponent<LivingEntity>();
+            }
+        }
     }
 
-    public void SetOriginPosition(int idx,GameObject prefab)
+    public int prefabId;
+    public int monsterCount;
+    public MonsterData[] monsterDatas;
+    public bool isBoss;
+
+    public MonsterGroup(Transform[] mon, bool bIsBoss = false)
     {
-        prefab.transform.localPosition = originPos[idx];
+        monsterCount = mon.Length;
+        monsterDatas = new MonsterData[monsterCount];
+
+        for (int i = 0; i < monsterCount; i++)
+        {
+            monsterDatas[i].transform = mon[i];
+            //monsterDatas[i].position = mon[i].localPosition;
+            //monsterDatas[i].entity = mon[i].GetComponent<LivingEntity>();
+            monsterDatas[i].hpBar = null;
+            monsterDatas[i].hpBarImage = null;
+        }
+
+        this.isBoss = bIsBoss;
+    }
+
+    public void SetOriginPosition(int idx, GameObject prefab)
+    {
+        prefab.transform.localPosition = monsterDatas[idx].position;
     }
 
     public void UpdateHPImage(int idx)
     {
-        monsterHPBar[idx].fillAmount = monsterEntity[idx].mHealth / (float)monsterEntity[idx].startingHealth;
+        monsterDatas[idx].hpBarImage.fillAmount = monsterDatas[idx].entity.mHealth / (float)monsterDatas[idx].entity.startingHealth;
     }
 
     public void AddHPImage(int idx, GameObject hpBar)
     {
-        monsterHP[idx] = hpBar.transform;
-        monsterHP[idx].GetChild(1).GetComponent<TextMeshProUGUI>().text = monsterEntity[idx].mName;
-        monsterHPBar[idx] = hpBar.transform.GetChild(0).GetChild(0).GetComponent<Image>() ;
+        monsterDatas[idx].hpBar = hpBar.transform;
+        monsterDatas[idx].hpBar.GetChild(1).GetComponent<TextMeshProUGUI>().text = monsterDatas[idx].entity.mName;
+        monsterDatas[idx].hpBarImage = hpBar.transform.GetChild(0).GetChild(0).GetComponent<Image>() ;
 
     }
 
     public void RemoveHPImage(int idx)
     {
-        monsterHPBar[idx] = null;
-        monsterHP[idx] = null;
+        monsterDatas[idx].hpBar = null;
+        monsterDatas[idx].hpBarImage = null;
     }
 }

@@ -1,5 +1,6 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
+using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -9,29 +10,29 @@ public class PredatorGroup : LivingEntity
     public string Name;
 
     [Header("[Layer]")]
-    public LayerMask whatIsTarget; //ÃßÀû´ë»ó ·¹ÀÌ¾î
+    public LayerMask whatIsTarget; //ì¶”ì ëŒ€ìƒ ë ˆì´ì–´
 
-    private LivingEntity targetEntity;//ÃßÀû´ë»ó
-    private NavMeshAgent pathFinder; //°æ·Î °è»ê AI ¿¡ÀÌÀüÆ®
+    private LivingEntity targetEntity;//ì¶”ì ëŒ€ìƒ
+    private NavMeshAgent pathFinder; //ê²½ë¡œ ê³„ì‚° AI ì—ì´ì „íŠ¸
 
-    /*public ParticleSystem hitEffect; //ÇÇ°İ ÀÌÆåÆ®
+    /*public ParticleSystem hitEffect; //í”¼ê²© ì´í™íŠ¸
     */
     [Header("[Sound]")]
-    public AudioClip deathSound;//»ç¸Á »ç¿îµå
-    public AudioClip hitSound; //ÇÇ°İ »ç¿îµå
+    public AudioClip deathSound;//ì‚¬ë§ ì‚¬ìš´ë“œ
+    public AudioClip hitSound; //í”¼ê²© ì‚¬ìš´ë“œ
     AudioSource AudioSrc;
 
     private Animator enemyAnimator;
     float animSpeed = 1.0f;
-    //private AudioSource enemyAudioPlayer; //¿Àµğ¿À ¼Ò½º ÄÄÆ÷³ÍÆ®
+    //private AudioSource enemyAudioPlayer; //ì˜¤ë””ì˜¤ ì†ŒìŠ¤ ì»´í¬ë„ŒíŠ¸
 
-    public float damage = 20f; //°ø°İ·Â
-    public float attackDelay = 1f; //°ø°İ µô·¹ÀÌ
-    private float lastAttackTime; //¸¶Áö¸· °ø°İ ½ÃÁ¡
-    private float dist; //ÃßÀû´ë»ó°úÀÇ °Å¸®
+    public float damage = 20f; //ê³µê²©ë ¥
+    public float attackDelay = 1f; //ê³µê²© ë”œë ˆì´
+    private float lastAttackTime; //ë§ˆì§€ë§‰ ê³µê²© ì‹œì 
+    private float dist; //ì¶”ì ëŒ€ìƒê³¼ì˜ ê±°ë¦¬
     private float distRange = 3f;
     private float searchRadius = 10f;
-    private Vector3 distance; //´ë»ó°úÀÇ °Å¸®
+    private Vector3 distance; //ëŒ€ìƒê³¼ì˜ ê±°ë¦¬
 
     public Transform tr;
 
@@ -45,18 +46,18 @@ public class PredatorGroup : LivingEntity
     float searchTime = 10.0f;
     float stunTime;
 
-    //ÃßÀû ´ë»óÀÌ Á¸ÀçÇÏ´ÂÁö ¾Ë·ÁÁÖ´Â ÇÁ·ÎÆÛÆ¼
+    //ì¶”ì  ëŒ€ìƒì´ ì¡´ì¬í•˜ëŠ”ì§€ ì•Œë ¤ì£¼ëŠ” í”„ë¡œí¼í‹°
     private bool hasTarget
     {
         get
         {
-            //ÃßÀûÇÒ ´ë»óÀÌ Á¸ÀçÇÏ°í, ´ë»óÀÌ »ç¸ÁÇÏÁö ¾Ê¾Ò´Ù¸é true
+            //ì¶”ì í•  ëŒ€ìƒì´ ì¡´ì¬í•˜ê³ , ëŒ€ìƒì´ ì‚¬ë§í•˜ì§€ ì•Šì•˜ë‹¤ë©´ true
             if (targetEntity != null && !targetEntity.bDead)
             {
                 return true;
             }
 
-            //±×·¸Áö ¾Ê´Ù¸é false
+            //ê·¸ë ‡ì§€ ì•Šë‹¤ë©´ false
             return false;
         }
     }
@@ -68,40 +69,42 @@ public class PredatorGroup : LivingEntity
 
     private void Awake()
     {
-        //°ÔÀÓ ¿ÀºêÁ§Æ®¿¡¼­ »ç¿ëÇÒ ÄÄÆ÷³ÍÆ® °¡Á®¿À±â
+        //ê²Œì„ ì˜¤ë¸Œì íŠ¸ì—ì„œ ì‚¬ìš©í•  ì»´í¬ë„ŒíŠ¸ ê°€ì ¸ì˜¤ê¸°
         pathFinder = GetComponent<NavMeshAgent>();
         pathFinder.stoppingDistance = attackRange;
         enemyAnimator = transform.GetChild(0).GetComponent<Animator>();
         AudioSrc = GetComponent<AudioSource>();
     }
 
-    //Àû AIÀÇ ÃÊ±â ½ºÆåÀ» °áÁ¤ÇÏ´Â ¼Â¾÷ ¸Ş¼­µå
+    //ì  AIì˜ ì´ˆê¸° ìŠ¤í™ì„ ê²°ì •í•˜ëŠ” ì…‹ì—… ë©”ì„œë“œ
     public void Setup(float newHealth, float newDamage, float newSpeed,string name)
     {
-        //Ã¼·Â ¼³Á¤
+        //ì²´ë ¥ ì„¤ì •
         startingHealth = newHealth;
         mHealth = newHealth;
-        //°ø°İ·Â ¼³Á¤
+        //ê³µê²©ë ¥ ì„¤ì •
         damage = newDamage;
-        //³×ºñ¸Ş½¬ ¿¡ÀÌÀüÆ®ÀÇ ÀÌµ¿ ¼Óµµ ¼³Á¤
+        //ë„¤ë¹„ë©”ì‰¬ ì—ì´ì „íŠ¸ì˜ ì´ë™ ì†ë„ ì„¤ì •
         pathFinder.speed = newSpeed;
         mName = name;
         mID = monsterID;
         mKind = monsterKind;
     }
 
-
-    void Start()
+    public override void Init()
     {
+        //ê²Œì„ ì˜¤ë¸Œì íŠ¸ í™œì„±í™”ì™€ ë™ì‹œì— AIì˜ íƒì§€ ë£¨í‹´ ì‹œì‘
         tr = GetComponent<Transform>();
         Setup(startingHealth, damage, moveSpeed, Name);
         searchTime = Random.Range(8.0f, 15.0f);
+        navSurface = transform.parent.GetComponentInChildren<NavMeshSurface>();
         navData = navSurface.navMeshData;
         pathFinder.enabled = true;
         SetRandomDest(navData.sourceBounds);
         pathFinder.SetDestination(transform.position + distance);
+
         enemyAnimator.SetInteger("EnemyState", 1);
-        //°ÔÀÓ ¿ÀºêÁ§Æ® È°¼ºÈ­¿Í µ¿½Ã¿¡ AIÀÇ Å½Áö ·çÆ¾ ½ÃÀÛ
+        //ê²Œì„ ì˜¤ë¸Œì íŠ¸ í™œì„±í™”ì™€ ë™ì‹œì— AIì˜ íƒì§€ ë£¨í‹´ ì‹œì‘
         StartCoroutine(UpdatePath());
     }
 
@@ -110,7 +113,7 @@ public class PredatorGroup : LivingEntity
     {
         if (hasTarget)
         {
-            //ÃßÀû ´ë»óÀÌ Á¸ÀçÇÒ °æ¿ì °Å¸® °è»êÀº ½Ç½Ã°£À¸·Î ÇØ¾ßÇÏ´Ï Update()
+            //ì¶”ì  ëŒ€ìƒì´ ì¡´ì¬í•  ê²½ìš° ê±°ë¦¬ ê³„ì‚°ì€ ì‹¤ì‹œê°„ìœ¼ë¡œ í•´ì•¼í•˜ë‹ˆ Update()
             dist = Vector3.Distance(tr.position, targetEntity.transform.position);
             if (dist > searchRadius) { targetEntity = null; }
         }
@@ -120,7 +123,7 @@ public class PredatorGroup : LivingEntity
             {
                 canMove = false;
                 enemyAnimator.SetInteger("EnemyState", 0);
-                //ÀÓÀÇ·Î ÀÚ¸® ¹Ù²Ù±â
+                //ì„ì˜ë¡œ ìë¦¬ ë°”ê¾¸ê¸°
                 searchTimer += Time.deltaTime;
                 if (searchTimer > searchTime)
                 {
@@ -136,7 +139,7 @@ public class PredatorGroup : LivingEntity
             }
         }
 
-        //hit ¾ø¾Ö±â
+        //hit ì—†ì• ê¸°
         if (bIsHit)
         {
             hitTimer += Time.deltaTime;
@@ -167,10 +170,10 @@ public class PredatorGroup : LivingEntity
     }
 
 
-    //ÃßÀûÇÒ ´ë»óÀÇ À§Ä¡¸¦ ÁÖ±âÀûÀ¸·Î Ã£¾Æ °æ·Î °»½Å
+    //ì¶”ì í•  ëŒ€ìƒì˜ ìœ„ì¹˜ë¥¼ ì£¼ê¸°ì ìœ¼ë¡œ ì°¾ì•„ ê²½ë¡œ ê°±ì‹ 
     private IEnumerator UpdatePath()
     {
-        //»ì¾Æ ÀÖ´Â µ¿¾È ¹«ÇÑ ·çÇÁ
+        //ì‚´ì•„ ìˆëŠ” ë™ì•ˆ ë¬´í•œ ë£¨í”„
         while (!bDead)
         {
             if (onDeath)
@@ -187,28 +190,28 @@ public class PredatorGroup : LivingEntity
                 else
                 {
 
-                    //ÃßÀû ´ë»óÀÌ ¾øÀ» °æ¿ì, Idle »óÅÂ µ¹ÀÔ
+                    //ì¶”ì  ëŒ€ìƒì´ ì—†ì„ ê²½ìš°, Idle ìƒíƒœ ëŒì…
                     //pathFinder.isStopped = true;
                     canAttack = false;
 
-                    //¹İÁö¸§ 1fÀÇ Äİ¶óÀÌ´õ·Î whatIsTarget ·¹ÀÌ¾î¸¦ °¡Áø Äİ¶óÀÌ´õ °ËÃâÇÏ±â
+                    //ë°˜ì§€ë¦„ 1fì˜ ì½œë¼ì´ë”ë¡œ whatIsTarget ë ˆì´ì–´ë¥¼ ê°€ì§„ ì½œë¼ì´ë” ê²€ì¶œí•˜ê¸°
                     Collider[] colliders = Physics.OverlapSphere(transform.position, searchRadius, whatIsTarget);
 
-                    //¸ğµç Äİ¶óÀÌ´õ¸¦ ¼øÈ¸ÇÏ¸é¼­ »ì¾Æ ÀÖ´Â LivingEntity Ã£±â
+                    //ëª¨ë“  ì½œë¼ì´ë”ë¥¼ ìˆœíšŒí•˜ë©´ì„œ ì‚´ì•„ ìˆëŠ” LivingEntity ì°¾ê¸°
                     for (int i = 0; i < colliders.Length; i++)
                     {
                         if (colliders[i].gameObject.tag.Equals("Player"))
                         {
-                            //Äİ¶óÀÌ´õ·ÎºÎÅÍ LivingEntity ÄÄÆ÷³ÍÆ® °¡Á®¿À±â
+                            //ì½œë¼ì´ë”ë¡œë¶€í„° LivingEntity ì»´í¬ë„ŒíŠ¸ ê°€ì ¸ì˜¤ê¸°
                             LivingEntity livingEntity = colliders[i].GetComponent<LivingEntity>();
 
-                            //LivingEntity ÄÄÆ÷³ÍÆ®°¡ Á¸ÀçÇÏ¸ç, ÇØ´ç LivingEntity°¡ »ì¾Æ ÀÖ´Ù¸é
+                            //LivingEntity ì»´í¬ë„ŒíŠ¸ê°€ ì¡´ì¬í•˜ë©°, í•´ë‹¹ LivingEntityê°€ ì‚´ì•„ ìˆë‹¤ë©´
                             if (livingEntity != null && !livingEntity.bDead && checkTargetInArea(navData.sourceBounds, livingEntity, transform.parent.position))
                             {
-                                //ÃßÀû ´ë»óÀ» ÇØ´ç LivingEntity·Î ¼³Á¤
+                                //ì¶”ì  ëŒ€ìƒì„ í•´ë‹¹ LivingEntityë¡œ ì„¤ì •
                                 targetEntity = livingEntity;
                                 searchTimer = 0f;
-                                //for¹® ·çÇÁ Áï½Ã Á¤Áö
+                                //forë¬¸ ë£¨í”„ ì¦‰ì‹œ ì •ì§€
                                 break;
                             }
                         }
@@ -224,78 +227,78 @@ public class PredatorGroup : LivingEntity
                 }
             }
 
-            //0.25ÃÊ ÁÖ±â·Î Ã³¸® ¹İº¹
+            //0.25ì´ˆ ì£¼ê¸°ë¡œ ì²˜ë¦¬ ë°˜ë³µ
             yield return new WaitForSeconds(0.25f);
         }
     }
 
-    //ÃßÀû ´ë»ó°úÀÇ °Å¸®¿¡ µû¶ó °ø°İ ½ÇÇà
+    //ì¶”ì  ëŒ€ìƒê³¼ì˜ ê±°ë¦¬ì— ë”°ë¼ ê³µê²© ì‹¤í–‰
     public virtual void Attack()
     {
-        //ÀÚ½ÅÀÌ »ç¸ÁX, ÃßÀû ´ë»ó°úÀÇ °Å¸®ÀÌ °ø°İ »ç°Å¸® ¾È¿¡ ÀÖ´Ù¸é
+        //ìì‹ ì´ ì‚¬ë§X, ì¶”ì  ëŒ€ìƒê³¼ì˜ ê±°ë¦¬ì´ ê³µê²© ì‚¬ê±°ë¦¬ ì•ˆì— ìˆë‹¤ë©´
         if (!bDead && dist <= attackRange)
         {
-            //°ø°İ ¹İ°æ ¾È¿¡ ÀÖÀ¸¸é ¿òÁ÷ÀÓÀ» ¸ØÃá´Ù.
+            //ê³µê²© ë°˜ê²½ ì•ˆì— ìˆìœ¼ë©´ ì›€ì§ì„ì„ ë©ˆì¶˜ë‹¤.
             canMove = false;
 
-            //ÃßÀû ´ë»ó ¹Ù¶óº¸±â
+            //ì¶”ì  ëŒ€ìƒ ë°”ë¼ë³´ê¸°
             this.transform.LookAt(targetEntity.transform);
 
-            //ÃÖ±Ù °ø°İ ½ÃÁ¡¿¡¼­ attackDelay ÀÌ»ó ½Ã°£ÀÌ Áö³ª¸é °ø°İ °¡´É
+            //ìµœê·¼ ê³µê²© ì‹œì ì—ì„œ attackDelay ì´ìƒ ì‹œê°„ì´ ì§€ë‚˜ë©´ ê³µê²© ê°€ëŠ¥
             if (lastAttackTime + attackDelay <= Time.time)
             {
                 canAttack = true;
                 OnDamageEvent();
                 enemyAnimator.SetInteger("EnemyState", 2);
             }
-            else   //°ø°İ ¹İ°æ ¾È¿¡ ÀÖÁö¸¸, µô·¹ÀÌ°¡ ³²¾ÆÀÖÀ» °æ¿ì
+            else   //ê³µê²© ë°˜ê²½ ì•ˆì— ìˆì§€ë§Œ, ë”œë ˆì´ê°€ ë‚¨ì•„ìˆì„ ê²½ìš°
             {
                 canAttack = false;
                 enemyAnimator.SetInteger("EnemyState", 0);
             }
         }
-        else  //°ø°İ ¹İ°æ ¹Û¿¡ ÀÖÀ» °æ¿ì ÃßÀûÇÏ±â
+        else  //ê³µê²© ë°˜ê²½ ë°–ì— ìˆì„ ê²½ìš° ì¶”ì í•˜ê¸°
         {
             enemyAnimator.SetInteger("EnemyState", 1);
             canMove = true;
             canAttack = false;
-            //°è¼Ó ÃßÀû
-            pathFinder.isStopped = false; //°è¼Ó ÀÌµ¿
+            //ê³„ì† ì¶”ì 
+            pathFinder.isStopped = false; //ê³„ì† ì´ë™
             pathFinder.SetDestination(targetEntity.transform.position);
         }
     }
 
-    //À¯´ÏÆ¼ ¾Ö´Ï¸ŞÀÌ¼Ç ÀÌº¥Æ®·Î ÈÖµÎ¸¦ ¶§ µ¥¹ÌÁö Àû¿ë½ÃÅ°±â
+    //ìœ ë‹ˆí‹° ì• ë‹ˆë©”ì´ì…˜ ì´ë²¤íŠ¸ë¡œ íœ˜ë‘ë¥¼ ë•Œ ë°ë¯¸ì§€ ì ìš©ì‹œí‚¤ê¸°
     public void OnDamageEvent()
     {
-        //°ø°İ Ã³¸®
+        //ê³µê²© ì²˜ë¦¬
         targetEntity.OnDamage(damage, 0, moveDir);
 
-        //ÃÖ±Ù °ø°İ ½Ã°£ °»½Å
+        //ìµœê·¼ ê³µê²© ì‹œê°„ ê°±ì‹ 
         lastAttackTime = Time.time;
     }
 
 
-    //µ¥¹ÌÁö¸¦ ÀÔ¾úÀ» ¶§ ½ÇÇàÇÒ Ã³¸®
+    //ë°ë¯¸ì§€ë¥¼ ì…ì—ˆì„ ë•Œ ì‹¤í–‰í•  ì²˜ë¦¬
     public override void OnDamage(float damage, float delayTime, Vector3 attackDir)
     {
-        //»ç¸ÁÇÏÁö ¾ÊÀ» »óÅÂ¿¡¼­¸¸ ÇÇ°İ È¿°ú Àç»ı
+        //ì‚¬ë§í•˜ì§€ ì•Šì„ ìƒíƒœì—ì„œë§Œ í”¼ê²© íš¨ê³¼ ì¬ìƒ
         if (!bDead)
         {
-            //°ø°İ ¹ŞÀº ÁöÁ¡°ú ¹æÇâÀ¸·Î ÇÇ°İ È¿°ú Àç»ı
+            //ê³µê²© ë°›ì€ ì§€ì ê³¼ ë°©í–¥ìœ¼ë¡œ í”¼ê²© íš¨ê³¼ ì¬ìƒ
             //hitEffect.transform.position = hitPoint;
             //hitEffect.transform.rotation = Quaternion.LookRotation(hitNormal);
             //hitEffect.Play();
             mAttackDir = attackDir;
             mDamage = damage;
 
-            //LivingEntityÀÇ OnDamage()¸¦ ½ÇÇàÇÏ¿© µ¥¹ÌÁö Àû¿ë
+            //LivingEntityì˜ OnDamage()ë¥¼ ì‹¤í–‰í•˜ì—¬ ë°ë¯¸ì§€ ì ìš©
             base.OnDamage(damage, delayTime, attackDir);
 
             HitAttack();
         }
 
-        //ÇÇ°İ ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
+        //í”¼ê²© ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
         //enemyAnimator.SetTrigger("Hit");
     }
 
@@ -310,24 +313,24 @@ public class PredatorGroup : LivingEntity
         base.OnStun(stunTime);
     }
 
-    //»ç¸Á Ã³¸®
+    //ì‚¬ë§ ì²˜ë¦¬
     public override void Die()
     {
-        //LivingEntityÀÇ DIe()¸¦ ½ÇÇàÇÏ¿© ±âº» »ç¸Á Ã³¸® ½ÇÇà
+        //LivingEntityì˜ DIe()ë¥¼ ì‹¤í–‰í•˜ì—¬ ê¸°ë³¸ ì‚¬ë§ ì²˜ë¦¬ ì‹¤í–‰
         base.Die();
 
-        //´Ù¸¥ AI¸¦ ¹æÇØÇÏÁö ¾Êµµ·Ï ÀÚ½ÅÀÇ ¸ğµç Äİ¶óÀÌ´õ¸¦ ºñÈ°¼ºÈ­
+        //ë‹¤ë¥¸ AIë¥¼ ë°©í•´í•˜ì§€ ì•Šë„ë¡ ìì‹ ì˜ ëª¨ë“  ì½œë¼ì´ë”ë¥¼ ë¹„í™œì„±í™”
         Collider[] enemyColliders = GetComponents<Collider>();
         for (int i = 0; i < enemyColliders.Length; i++)
         {
             enemyColliders[i].enabled = false;
         }
 
-        //AIÃßÀûÀ» ÁßÁöÇÏ°í ³×ºñ¸Ş½¬ ÄÄÆ÷³ÍÆ®¸¦ ºñÈ°¼ºÈ­
+        //AIì¶”ì ì„ ì¤‘ì§€í•˜ê³  ë„¤ë¹„ë©”ì‰¬ ì»´í¬ë„ŒíŠ¸ë¥¼ ë¹„í™œì„±í™”
         pathFinder.isStopped = true;
         pathFinder.enabled = false;
 
-        //»ç¸Á ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
+        //ì‚¬ë§ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
         //enemyAnimator.SetTrigger("Die");
         StartCoroutine("DelayedDestroy", 5.0f);
 
@@ -335,12 +338,12 @@ public class PredatorGroup : LivingEntity
 
     void HitAttack()
     {
-        //ÇÇ°İ È¿°úÀ½ Àç»ı
+        //í”¼ê²© íš¨ê³¼ìŒ ì¬ìƒ
         EffectGenerator.instance.GenerateEffect(1, 1.0f, 0, transform);
         EffectGenerator.instance.GenerateDamageTXT(0, 1.0f, 0, mDamage.ToString(), transform);
         AudioSrc.PlayOneShot(hitSound);
         enemyAnimator.SetInteger("EnemyState", 3);
-        //¹Ğ·Á³ª±â
+        //ë°€ë ¤ë‚˜ê¸°
         transform.localPosition = Vector3.Lerp(transform.localPosition, transform.localPosition + (mAttackDir * 30f), Time.deltaTime);
         if (bDead)
         {
@@ -352,6 +355,7 @@ public class PredatorGroup : LivingEntity
     IEnumerator DelayedDestroy(float delayTime)
     {
         yield return new WaitForSeconds(delayTime);
-        Destroy(this.gameObject);
+        //Destroy(gameObject);
+        gameObject.SetActive(false);
     }
 }

@@ -20,7 +20,7 @@ public class PlayerCamera : MonoBehaviour
     public Transform target;
     public Vector3 direction;
 
-    private Camera mainCam;
+    public Camera mainCam;
     private Camera specialCam;
 
     private CameraMovement camMovement;

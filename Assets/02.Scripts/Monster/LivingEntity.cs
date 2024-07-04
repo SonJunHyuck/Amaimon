@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using System;
 using UnityEngine;
@@ -6,14 +6,13 @@ using Unity.AI.Navigation;
 
 public class LivingEntity : MonoBehaviour
 {
-    // Start is called before the first frame update
-    public float startingHealth = 100f; //Ã¼·Â
-    public float coolTime = 0f; //Äğ Å¸ÀÓ
+    public float startingHealth = 100f; //ì²´ë ¥
+    public float coolTime = 0f; //ì¿¨ íƒ€ì„
     public int monsterID;
     public int monsterKind;
-    public float mHealth { get; protected set; } //ÇöÀç Ã¼·Â
-    public float mCoolTime { get; protected set; } //ÇöÀç ÄğÅ¸ÀÓ
-    public bool bDead { get; protected set; } //»ç¸Á »óÅÂ
+    public float mHealth { get; protected set; } //í˜„ì¬ ì²´ë ¥
+    public float mCoolTime { get; protected set; } //í˜„ì¬ ì¿¨íƒ€ì„
+    public bool bDead { get; protected set; } //ì‚¬ë§ ìƒíƒœ
     public int mID { get; protected set; }
     public int mKind { get; protected set; }
 
@@ -29,12 +28,15 @@ public class LivingEntity : MonoBehaviour
 
     public NavMeshSurface navSurface;
 
-    //»ı¸íÃ¼°¡ È°¼ºÈ­µÉ ‹š »óÅÂ¸¦ ¸®¼Â
+    // Start ëŒ€ì‹ ì— ì‚¬ìš©
+    public virtual void Init() { }
+
+    //ìƒëª…ì²´ê°€ í™œì„±í™”ë  ë–„ ìƒíƒœë¥¼ ë¦¬ì…‹
     protected void OnEnable()
     {
-        //»ç¸ÁÇÏÁö ¾ÊÀº »óÅÂ·Î ½ÃÀÛ
+        //ì‚¬ë§í•˜ì§€ ì•Šì€ ìƒíƒœë¡œ ì‹œì‘
         bDead = false;
-        //Ã¼·ÂÀ» ½ÃÀÛ Ã¼·ÂÀ¸·Î ÃÊ±âÈ­
+        //ì²´ë ¥ì„ ì‹œì‘ ì²´ë ¥ìœ¼ë¡œ ì´ˆê¸°í™”
         mHealth = startingHealth;
         mCoolTime = coolTime;
         mID = monsterID;
@@ -42,14 +44,14 @@ public class LivingEntity : MonoBehaviour
     }
 
 
-    //ÇÇÇØ¸¦ ¹Ş´Â ±â´É
+    //í”¼í•´ë¥¼ ë°›ëŠ” ê¸°ëŠ¥
     public virtual void OnDamage(float damage, float delayTime, Vector3 attackDir)
     {
         bIsHit = true;
         hitTimer = 0;
-        //µ¥¹ÌÁö¸¸Å­ Ã¼·Â °¨¼Ò
+        //ë°ë¯¸ì§€ë§Œí¼ ì²´ë ¥ ê°ì†Œ
         mHealth -= damage; // health = health - damage;
-        //Ã¼·ÂÀÌ 0 ÀÌÇÏ && ¾ÆÁ÷ Á×Áö ¾Ê¾Ò´Ù¸é »ç¸Á Ã³¸® ½ÇÇà
+        //ì²´ë ¥ì´ 0 ì´í•˜ && ì•„ì§ ì£½ì§€ ì•Šì•˜ë‹¤ë©´ ì‚¬ë§ ì²˜ë¦¬ ì‹¤í–‰
         if (mHealth <= 0 && !bDead)
         {
             Die();
@@ -60,9 +62,9 @@ public class LivingEntity : MonoBehaviour
     {
         bIsHit = true;
         hitTimer = 0;
-        //µ¥¹ÌÁö¸¸Å­ Ã¼·Â °¨¼Ò
+        //ë°ë¯¸ì§€ë§Œí¼ ì²´ë ¥ ê°ì†Œ
         mHealth -= damage; // health = health - damage;
-        //Ã¼·ÂÀÌ 0 ÀÌÇÏ && ¾ÆÁ÷ Á×Áö ¾Ê¾Ò´Ù¸é »ç¸Á Ã³¸® ½ÇÇà
+        //ì²´ë ¥ì´ 0 ì´í•˜ && ì•„ì§ ì£½ì§€ ì•Šì•˜ë‹¤ë©´ ì‚¬ë§ ì²˜ë¦¬ ì‹¤í–‰
         if (mHealth <= 0 && !bDead)
         {
             Die();
@@ -76,9 +78,9 @@ public class LivingEntity : MonoBehaviour
         hitTimer = 0;
     }
 
-    //Ã¼·ÂÀ» È¸º¹ ÇÏ´Â ±â´ÉÀº Ã¥¿¡ ÀÖ´Âµ¥ ³ª´Â ÇÃ·¹ÀÌ¾î ½ºÅİ ½ºÅ©¸³Æ®¿¡¼­ Àû¿ëÇÒ °ÍÀÓ
+    //ì²´ë ¥ì„ íšŒë³µ í•˜ëŠ” ê¸°ëŠ¥ì€ ì±…ì— ìˆëŠ”ë° ë‚˜ëŠ” í”Œë ˆì´ì–´ ìŠ¤í…Ÿ ìŠ¤í¬ë¦½íŠ¸ì—ì„œ ì ìš©í•  ê²ƒì„
 
-    //»ç¸Á Ã³¸®
+    //ì‚¬ë§ ì²˜ë¦¬
     public virtual void Die()
     {
         bDead = true;
