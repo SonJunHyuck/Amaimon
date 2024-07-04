@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -69,12 +70,13 @@ public class HerbivoreGroup : LivingEntity
         mKind = monsterKind;
     }
 
-    void Start()
+    public override void Init()
     {
         //게임 오브젝트 활성화와 동시에 AI의 탐지 루틴 시작
         tr = GetComponent<Transform>();
-        Setup(startingHealth, damage, moveSpeed,Name);
+        Setup(startingHealth, damage, moveSpeed, Name);
         searchTime = Random.Range(8.0f, 15.0f);
+        navSurface = transform.parent.GetComponentInChildren<NavMeshSurface>();
         navData = navSurface.navMeshData;
         pathFinder.enabled = true;
         SetRandomDest(navData.sourceBounds);
@@ -222,6 +224,7 @@ public class HerbivoreGroup : LivingEntity
     IEnumerator DelayedDestroy(float delayTime)
     {
         yield return new WaitForSeconds(delayTime);
-        Destroy(this.gameObject);
+        // Destroy(this.gameObject);
+        gameObject.SetActive(false);
     }
 }

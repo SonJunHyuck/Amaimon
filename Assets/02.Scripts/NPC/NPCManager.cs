@@ -82,9 +82,9 @@ public class NPCManager : MonoBehaviour
         int questMonIdx = npcCon[index].GetQuestMonsterIndex();
         int questMonKind= npcCon[index].GetQuestMonsterKind();
         if(questMonKind==0)
-            miniMap.AddQuestArea(monsterM.monsterParentTrans[questMonIdx], monsterM.mMonsterZone[questMonIdx]);
+            miniMap.AddQuestArea(monsterM.monsterSpawnPools[questMonIdx], monsterM.monsterZone[questMonIdx]);
         else
-            miniMap.AddQuestArea(monsterM.bossParentTrans[questMonIdx], monsterM.mBossZone[questMonIdx]);
+            miniMap.AddQuestArea(monsterM.bossParentTrans[questMonIdx], monsterM.bossZone[questMonIdx]);
         return npcCon[index].quests[0];
     }
 

@@ -51,6 +51,8 @@ MonoBehaviour:
   startingHealth: 100
   coolTime: 0
   monsterID: 1
+  monsterKind: 0
+  onDeath: 0
   navSurface: {fileID: 0}
   Name: "\uB291\uB300"
   whatIsTarget:
