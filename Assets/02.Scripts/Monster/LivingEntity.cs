@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System;
 using UnityEngine;
@@ -27,6 +27,8 @@ public class LivingEntity : MonoBehaviour
     public bool onDeath;
 
     public NavMeshSurface navSurface;
+
+    public Action<Transform> OnDie;
 
     // Start 대신에 사용
     public virtual void Init() { }
@@ -84,6 +86,10 @@ public class LivingEntity : MonoBehaviour
     public virtual void Die()
     {
         bDead = true;
+
+        // Monster는 Manager에게 죽었다는 것을 알려줘야함 -> DeadEvent -> 제공자
+        // Model은 관리자를 참조하지 않음 (역전 참조의 원칙)
+        OnDie?.Invoke(transform);
     }
 
 }

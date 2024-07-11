@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.AI.Navigation;
 using UnityEngine;
@@ -97,7 +97,7 @@ public class PredatorGroup : LivingEntity
         tr = GetComponent<Transform>();
         Setup(startingHealth, damage, moveSpeed, Name);
         searchTime = Random.Range(8.0f, 15.0f);
-        navSurface = transform.parent.GetComponentInChildren<NavMeshSurface>();
+        navSurface = transform.root.GetComponentInChildren<NavMeshSurface>();
         navData = navSurface.navMeshData;
         pathFinder.enabled = true;
         SetRandomDest(navData.sourceBounds);

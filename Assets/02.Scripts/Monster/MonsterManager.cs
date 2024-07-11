@@ -1,18 +1,19 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using TMPro;
 using Unity.AI.Navigation;
+using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class MonsterManager : MonoBehaviour
 {
+    public Transform monsterArea;
     public Transform[] monsterSpawnPools;  // Monster Group
-    public GameObject[] monsterPrefab;
 
-    public List<MonsterGroup> monsterGroupList;
+    //public List<MonsterGroup> monsterGroupList;
     public Vector3[] monsterZone;
     public NavMeshSurface[] navMeshSurfaces;
 
@@ -24,9 +25,6 @@ public class MonsterManager : MonoBehaviour
 
     public UIManager uiM;
 
-    public float spawnTime;
-    float spawnTimer;
-
     RewardPackage bossPackage;
 
     [Header("▶ Enemy Info")]
@@ -35,29 +33,21 @@ public class MonsterManager : MonoBehaviour
 
     void Start()
     {
-        monsterGroupList = new List<MonsterGroup>() ;
+        //monsterGroupList = new List<MonsterGroup>() ;
         monsterZone = new Vector3[monsterSpawnPools.Length];
 
-        for (int i = 0; i < monsterSpawnPools.Length; i++)
+        for(int fieldIdx = 0; fieldIdx < 2; fieldIdx++)
         {
-            // TODO : 구 생성 -> 위치 확인 -> 엑셀로 위치 범위 저장 -> 나중에 불러오기
-            int spawnCount = 5;
-            Transform monsterSpawnPool = monsterSpawnPools[i];
-            Transform[] monsters = new Transform[spawnCount];
+            FieldData fieldData = GameManager.instance.GetFieldData(fieldIdx);
 
-            for (int j = 0; j < spawnCount; j++)
+            foreach (int areaId in fieldData.monsterAreaList)
             {
-                GameObject spawnedMonster = PoolManager.instance.Get(i);
-                Vector3 spawnPos = monsterSpawnPool.GetComponentInChildren<SpawnArea>().GetValidPosition();
-                spawnedMonster.transform.position = spawnPos;
-                spawnedMonster.transform.SetParent(monsterSpawnPool.transform);
-                spawnedMonster.GetComponent<LivingEntity>().Init();
-                monsters[j] = spawnedMonster.transform;
+                MonsterAreaData areaData = GameManager.instance.GetMonsterAreaData(areaId);
+                Transform area = monsterArea.GetChild(areaId);
+                area.GetComponentInChildren<SpawnArea>().InitMonsterSpanwer(areaId);
+                
+                monsterZone[areaData.monsterAreaId] = monsterSpawnPools[areaData.monsterAreaId].GetChild(0).localScale;
             }
-
-            MonsterGroup monsterGroup = new MonsterGroup(monsters);
-            monsterGroupList.Add(monsterGroup);
-            monsterZone[i] = monsterSpawnPools[i].GetChild(0).localScale;
         }
 
         bossZone = new Vector3[bossParentTrans.Length];
@@ -69,13 +59,6 @@ public class MonsterManager : MonoBehaviour
 
     void Update()
     {
-        spawnTimer += Time.deltaTime;
-        if (spawnTimer > spawnTime)
-        {
-            spawnTimer = 0;
-            SpawnMonsters();
-        }
-
         // Boss Reward
         if(currentBoss != null && currentBoss.bossEntity.bDead && !currentBoss.completed)
         {
@@ -89,74 +72,53 @@ public class MonsterManager : MonoBehaviour
         UpdateMonsterHPBar();
     }
 
-    private void SpawnMonsters()
-    {
-        for (int i = 0; i < monsterGroupList.Count; i++)
-        {
-            for (int j = 0; j < monsterGroupList[i].monsterCount; j++)
-            {
-                MonsterGroup monsterGroup = monsterGroupList[i];
-                if (!monsterGroup.monsterDatas[j].transform.gameObject.activeSelf)
-                {
-                    GameObject spawnedMonster = PoolManager.instance.Get(i);
-                    spawnedMonster.transform.parent = monsterSpawnPools[i];  // 부모 설정
-                    spawnedMonster.GetComponent<LivingEntity>().Init();
-                    monsterGroup.SetOriginPosition(j, spawnedMonster);
-                    monsterGroup.monsterDatas[j].transform = spawnedMonster.transform;
-                    //monsterGroup.monsterDatas[j].entity.Init();
-                    //monsterGroup.monsterDatas[j].entity.navSurface = navMeshSurfaces[monsterGroup.monsterDatas[j].entity.mID];
-                }
-            }
-        }
-    }
-
     void UpdateMonsterHPBar()
     {
-        for (int i = 0; i < monsterGroupList.Count; i++)
-        {
-            for (int j = 0; j < monsterGroupList[i].monsterCount; j++)
-            {
-                MonsterGroup monsterGroup = monsterGroupList[i];
+        //for (int i = 0; i < monsterGroupList.Count; i++)
+        //{
+        //    for (int j = 0; j < monsterGroupList[i].monsterCount; j++)
+        //    {
+        //        MonsterGroup monsterGroup = monsterGroupList[i];
                 
-                // 몬스텨 존재
-                if (monsterGroup.monsterDatas[j].transform != null)
-                {
-                    // 맞았을 때
-                    if (monsterGroup.monsterDatas[j].entity.bIsHit)
-                    {
-                        // 이미지가 있다면 업데이트, 없으면 새로 만들어주기
-                        if(monsterGroup.monsterDatas[j].hpBarImage != null)
-                        {
-                            monsterGroup.monsterDatas[j].hpBar.position = Camera.main.WorldToScreenPoint(monsterGroup.monsterDatas[j].transform.position) + Vector3.up * 100f;
-                            monsterGroup.UpdateHPImage(j);
-                        }
-                        else
-                        {
-                            GameObject hpBar = Instantiate(mEnemyInfo, Vector3.zero, Quaternion.identity);
-                            hpBar.transform.parent = mEnemyHPParent;
-                            monsterGroup.AddHPImage(j, hpBar);
-                        }
-                    }
-                    else
-                    {
-                        if (monsterGroup.monsterDatas[j].hpBarImage != null)
-                        {
-                            // 없애기
-                            Destroy(monsterGroup.monsterDatas[j].hpBar.gameObject);
-                            monsterGroup.RemoveHPImage(j); ;
-                        }
-                    }
-                }
-                else if(monsterGroup.monsterDatas[j].transform == null)
-                {
-                    if(monsterGroup.monsterDatas[j].hpBarImage != null)
-                    {
-                        // 몬스터 없으면 이미지도 같이 없애기
-                        Destroy(monsterGroup.monsterDatas[j].hpBar.gameObject);
-                    }               
-                }
-            }
-        }
+        //        // 몬스텨 존재
+        //        if (monsterGroup.monsterDatas[j].transform != null)
+        //        {
+        //            // 맞았을 때
+        //            if (monsterGroup.monsterDatas[j].entity.bIsHit)
+        //            {
+        //                // 이미지가 있다면 업데이트, 없으면 새로 만들어주기
+        //                if(monsterGroup.monsterDatas[j].hpBarImage != null)
+        //                {
+        //                    monsterGroup.monsterDatas[j].hpBar.position = Camera.main.WorldToScreenPoint(monsterGroup.monsterDatas[j].transform.position) + Vector3.up * 100f;
+        //                    monsterGroup.UpdateHPImage(j);
+        //                }
+        //                else
+        //                {
+        //                    GameObject hpBar = Instantiate(mEnemyInfo, Vector3.zero, Quaternion.identity);
+        //                    hpBar.transform.parent = mEnemyHPParent;
+        //                    monsterGroup.AddHPImage(j, hpBar);
+        //                }
+        //            }
+        //            else
+        //            {
+        //                if (monsterGroup.monsterDatas[j].hpBarImage != null)
+        //                {
+        //                    // 없애기
+        //                    Destroy(monsterGroup.monsterDatas[j].hpBar.gameObject);
+        //                    monsterGroup.RemoveHPImage(j); ;
+        //                }
+        //            }
+        //        }
+        //        else if(monsterGroup.monsterDatas[j].transform == null)
+        //        {
+        //            if(monsterGroup.monsterDatas[j].hpBarImage != null)
+        //            {
+        //                // 몬스터 없으면 이미지도 같이 없애기
+        //                Destroy(monsterGroup.monsterDatas[j].hpBar.gameObject);
+        //            }               
+        //        }
+        //    }
+        //}
     }
 
     public void EnterBossZone(int idx)
