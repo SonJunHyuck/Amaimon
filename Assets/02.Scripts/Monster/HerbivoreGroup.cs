@@ -76,11 +76,13 @@ public class HerbivoreGroup : LivingEntity
         tr = GetComponent<Transform>();
         Setup(startingHealth, damage, moveSpeed, Name);
         searchTime = Random.Range(8.0f, 15.0f);
-        navSurface = transform.parent.GetComponentInChildren<NavMeshSurface>();
+        navSurface = transform.root.GetComponentInChildren<NavMeshSurface>();
         navData = navSurface.navMeshData;
         pathFinder.enabled = true;
         SetRandomDest(navData.sourceBounds);
         pathFinder.SetDestination(dist);
+
+        // 죽으면 알려줌
     }
 
     // Update is called once per frame

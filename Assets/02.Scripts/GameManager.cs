@@ -11,6 +11,8 @@ using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager instance;
+
     // Start is called before the first frame update
     public PlayerCamera playerCam;
     public UserPlayerCtrl mPlayer;
@@ -29,6 +31,16 @@ public class GameManager : MonoBehaviour
     public AudioClip[] bgms;
     int pirorBGMNum;
 
+    public GameDataManager gameDataManager;
+
+    public int fieldId;
+
+    private void Awake()
+    {
+        instance = this;
+        fieldId = 0;
+    }
+
     void Start()
     {
         npcM = this.transform.GetChild(0).GetComponent<NPCManager>();
@@ -45,7 +57,7 @@ public class GameManager : MonoBehaviour
     {
         if ((int)mPlayer.mPlayerState != 8) 
         { 
-             //Ω√∞£ »Â∏£∞‘ «œ±‚
+             //ÏãúÍ∞Ñ ÌùêÎ•¥Í≤å ÌïòÍ∏∞
             //mWorldClock -= Time.deltaTime* mDaySpeed;
             //Sun.transform.rotation = Quaternion.Euler(mWorldClock,-100,0);
             //if (mWorldClock <= 0) mWorldClock = 180;
@@ -90,9 +102,9 @@ public class GameManager : MonoBehaviour
                         {
                             int questIdx = getQuestIndex(npcM.GetQuestIdxWithNPCID(interactNPCID));
                             uiM.removeQuestContent(questIdx);
-                            mPlayer.UnpackReward(npcM.GiveReward(interactNPCID));         //∫∏ªÛ ¡ˆ±ﬁ
+                            mPlayer.UnpackReward(npcM.GiveReward(interactNPCID));         //Î≥¥ÏÉÅ ÏßÄÍ∏â
                             questList.RemoveAt(questIdx);
-                            //ƒ˘Ω∫∆Æ∞° ∂« ¿÷¥¬¡ˆ »Æ¿Œ
+                            //ÌÄòÏä§Ìä∏Í∞Ä Îòê ÏûàÎäîÏßÄ ÌôïÏù∏
                         }
                         else if(npcM.GetQuestState(interactNPCID) == 0)
                         {
@@ -166,5 +178,25 @@ public class GameManager : MonoBehaviour
     {
         if (play) { audioSrc.Play(); }
         else { audioSrc.Stop(); }
+    }
+
+    public FieldData GetCurrentFieldData()
+    {
+        return gameDataManager.fieldDataDic[fieldId];
+    }
+
+    public FieldData GetFieldData(int idx)
+    {
+        return gameDataManager.fieldDataDic[idx];
+    }
+
+    public MonsterData GetMonsterData(int idx)
+    {
+        return gameDataManager.monsterDataDic[idx];
+    }
+
+    public MonsterAreaData GetMonsterAreaData(int idx)
+    {
+        return gameDataManager.monsterAreaDataDic[idx];
     }
 }
